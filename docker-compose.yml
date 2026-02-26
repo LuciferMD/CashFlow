@@ -1,5 +1,6 @@
 services:
   api:
+    container_name: auth
     build:
       context: ./Api/Auth
       dockerfile: Dockerfile
@@ -8,23 +9,36 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+80
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DatabaseConnectionString=Host=postgres;Database=${POSTGRES_DB:-cashFlow_auth};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      - ConnectionStrings__DatabaseConnectionString=Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
+  migrations:
+    container_name: auth-migrations
+    build:
+      context: ./Api/Auth
+      dockerfile: Dockerfile.migrations
+    environment:
+       - ConnectionStrings__DatabaseConnectionString=Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["dotnet", "ef", "database", "update"]
 
   postgres:
     image: postgres:alpine
     restart: always
     container_name: postgres
     healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
         interval: 10s
         timeout: 5s
         retries: 5
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-cashFlow_auth}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports: 
