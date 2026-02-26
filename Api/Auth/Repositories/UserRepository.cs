@@ -7,8 +7,8 @@ namespace Auth.Repositories
 {
     public class UserRepository : IUserRepository
     {
-        private AuthContext _context;
-        public UserRepository(AuthContext context)
+        private AuthDbContext _context;
+        public UserRepository(AuthDbContext context)
         {
             _context = context;
         }

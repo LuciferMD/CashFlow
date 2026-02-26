@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Auth.Migrations
 {
-    [DbContext(typeof(AuthContext))]
+    [DbContext(typeof(AuthDbContext))]
     [Migration("20260224095956_InitialCreate")]
     partial class InitialCreate
     {
