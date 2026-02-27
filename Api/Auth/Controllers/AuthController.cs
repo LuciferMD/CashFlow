@@ -17,10 +17,17 @@ namespace Auth.Controllers
             _logger = logger;
             _userService = userService;
         }
-        [HttpPost]
+        [HttpPost("register")]
         public async Task Register(UserRequestDto userRequestDto)
         {
             await _userService.Register(userRequestDto);
+        }
+        [HttpPost("login")]
+        public async Task<IResult> Login(LoginUserRequestDto loginRequest)
+        {
+            var token = await _userService.Login(loginRequest);
+            
+            return Results.Ok(token);
         }
     }
 }

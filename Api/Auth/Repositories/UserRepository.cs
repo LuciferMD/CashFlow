@@ -2,6 +2,7 @@
 using Auth.Models;
 using Auth.Repositories.Context;
 using Auth.Repositories.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Auth.Repositories
 {
@@ -16,6 +17,14 @@ namespace Auth.Repositories
         {
            await _context.AddAsync(user);
            await _context.SaveChangesAsync();
+        }
+
+        public async Task<User> GetByEmail(string email)
+        {
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            return user;
         }
     }
 }
