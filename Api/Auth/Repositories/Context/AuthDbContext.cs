@@ -4,9 +4,9 @@ using System;
 
 namespace Auth.Repositories.Context
 {
-    public class AuthContext : DbContext
+    public class AuthDbContext : DbContext
     {
-        public AuthContext(DbContextOptions<AuthContext> options) : base(options) { }
+        public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options) { }
         public DbSet<User> Users { get; set; }
     }
 }
