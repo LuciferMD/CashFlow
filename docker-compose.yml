@@ -1,4 +1,19 @@
 services:
+  web:
+    image: web
+    build:
+      context: ./Web/web
+      dockerfile: Dockerfile
+    ports:
+      - '5173:5173'
+    container_name: react-vite-container
+    stdin_open: true
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+
   api:
     container_name: auth
     build:
