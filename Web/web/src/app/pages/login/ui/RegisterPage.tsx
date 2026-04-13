@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Button } from "../components/ui/button";
-import { AnimatedCoin } from "../components/AnimatedCoin";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
+import { Input } from "../../../components/ui/input.tsx";
+import { Label } from "../../../components/ui/label.tsx";
+import { Button } from "../../../components/ui/button.tsx";
+import { AnimatedCoin } from "../../../components/AnimatedCoin.tsx";
+import {register} from "../api/Register.ts";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -26,9 +27,9 @@ export function RegisterPage() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock registration - in production this would create user in backend
+
     if (formData.password === formData.confirmPassword) {
-      navigate("/dashboard");
+      register(formData.name, formData.email, formData.password).then(result => console.log(result));
     }
   };
 
@@ -45,7 +46,7 @@ export function RegisterPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-5">
+          <form onSubmit={(e) => handleRegister(e)} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
