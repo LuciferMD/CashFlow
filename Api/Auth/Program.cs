@@ -20,6 +20,13 @@ builder.Services.AddScoped<IUserRepository,UserRepository>();
 builder.Services.AddScoped<IJwtProvider,JwtProvider>();
 builder.Services.AddApiAuthentication(builder.Configuration);
 
+builder.Services.AddCors(options => 
+                            options.AddPolicy("Frontend", policy =>
+                                policy.WithOrigins(builder.Configuration.GetValue<string>("Microservices:Frontend"))
+                                .AllowCredentials()
+                                .AllowAnyHeader()
+                                .AllowAnyMethod()));
+
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
     .UseSnakeCaseNamingConvention());
@@ -31,13 +38,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("Frontend");
 app.UseHttpsRedirection();
 
 app.UseCookiePolicy(new CookiePolicyOptions
 {
     MinimumSameSitePolicy = SameSiteMode.Strict,
     HttpOnly = HttpOnlyPolicy.Always,
-    Secure = CookieSecurePolicy.Always
+    Secure = CookieSecurePolicy.SameAsRequest
 });
 
 app.UseAuthentication();
