@@ -9,8 +9,17 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(nameof(JwtOptions)));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+        policy
+            .WithOrigins("https://localhost:5173")
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -19,13 +28,6 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository,UserRepository>();
 builder.Services.AddScoped<IJwtProvider,JwtProvider>();
 builder.Services.AddApiAuthentication(builder.Configuration);
-
-builder.Services.AddCors(options => 
-                            options.AddPolicy("Frontend", policy =>
-                                policy.WithOrigins(builder.Configuration.GetValue<string>("Microservices:Frontend"))
-                                .AllowCredentials()
-                                .AllowAnyHeader()
-                                .AllowAnyMethod()));
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -39,7 +41,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
-app.UseHttpsRedirection();
+
+// Comment out or remove HttpsRedirection in dev — it causes preflight redirects
+//app.UseHttpsRedirection();
 
 app.UseCookiePolicy(new CookiePolicyOptions
 {
