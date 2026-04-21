@@ -5,7 +5,7 @@ namespace Auth.Interfaces
 {
     public interface IUserService
     {
-        public Task Register(UserRequestDto userRequest);
+        public Task<string> Register(UserRequestDto userRequest);
         public Task<string> Login(LoginUserRequestDto loginUserRequestDto);
     }
 }

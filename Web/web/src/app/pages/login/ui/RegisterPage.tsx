@@ -16,6 +16,8 @@ export function RegisterPage() {
     confirmPassword: "",
   });
   const [isAnimating, setIsAnimating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
 
   const handleFieldFocus = () => {
     setIsAnimating(true);
@@ -29,7 +31,15 @@ export function RegisterPage() {
     e.preventDefault();
 
     if (formData.password === formData.confirmPassword) {
-      register(formData.name, formData.email, formData.password).then(result => console.log(result));
+      register(formData.name, formData.email, formData.password)
+          .then(result => {
+            if(result){
+              navigate('/dashboard');
+            }
+            else{
+             setError("Something went wrong. Please try again");
+            }
+          });
     }
   };
 
@@ -47,6 +57,11 @@ export function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => handleRegister(e)} className="space-y-5">
+            {error && (
+                <div className="text-sm text-red-500 text-center">
+                  {error}
+                </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input

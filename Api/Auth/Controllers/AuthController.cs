@@ -20,18 +20,28 @@ namespace Auth.Controllers
         }
 
         [HttpPost("register")]
-        public async Task Register(UserRequestDto userRequestDto)
+        public async Task<IResult> Register(UserRequestDto userRequestDto)
         {
-            await _userService.Register(userRequestDto);
+            var token = await _userService.Register(userRequestDto);
+            Response.Cookies.Append("GuardPass", token);
+
+            return Results.Ok();
         }
 
         [HttpPost("login")]
         public async Task<IResult> Login(LoginUserRequestDto loginRequest)
         {
             var token = await _userService.Login(loginRequest);
-            Response.Cookies.Append("GuardPass", token);
+            if(token == string.Empty)
+            {
+                return Results.Unauthorized();
+            }
+            else
+            {
+                Response.Cookies.Append("GuardPass", token);
 
-            return Results.Ok();
+                return Results.Ok();
+            }
         }
 
         [Authorize]

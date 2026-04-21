@@ -6,17 +6,19 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Button } from "../components/ui/button";
-import { AnimatedCoin } from "../components/AnimatedCoin";
+} from "../../../components/ui/card.tsx";
+import { Input } from "../../../components/ui/input.tsx";
+import { Label } from "../../../components/ui/label.tsx";
+import { Button } from "../../../components/ui/button.tsx";
+import { AnimatedCoin } from "../../../components/AnimatedCoin.tsx";
+import {login} from "../api/Login.ts";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAnimating, setIsAnimating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFieldFocus = () => {
     setIsAnimating(true);
@@ -28,9 +30,19 @@ export function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - in production this would authenticate with backend
+    setError(null);
+
     if (email && password) {
-      navigate("/dashboard");
+      login(email,password)
+          .then(result => {
+            if(result){
+              navigate('/dashboard');
+            }
+            else{
+              setError("Invalid email or password");
+            }
+          })
+          .catch(() => setError("Something went wrong. Please try again"));
     }
   };
 
@@ -50,6 +62,11 @@ export function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+                <div className="text-sm text-red-500 text-center">
+                  {error}
+                </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
