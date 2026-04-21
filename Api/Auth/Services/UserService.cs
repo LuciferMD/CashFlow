@@ -13,11 +13,22 @@ namespace Auth.Services
             _userRepository = userRepository;
             _jwtProvider = jwtProvider;
         }
-        public async Task Register(UserRequestDto userRequestDto)
+        public async Task<string> Register(UserRequestDto userRequestDto)
         {
             var passwordHash = PasswordHasher.Generate(userRequestDto.Password);
             var newUser = User.Create(Guid.NewGuid(), userRequestDto.UserName, userRequestDto.Email, passwordHash);
-            await _userRepository.Add(newUser);
+
+            try
+            {
+                await _userRepository.Add(newUser);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            var token = _jwtProvider.GenerateToken(newUser);
+
+            return token;
         }
 
         public async Task<string> Login(LoginUserRequestDto loginRequest)
