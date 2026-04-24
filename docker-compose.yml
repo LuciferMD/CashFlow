@@ -17,6 +17,14 @@ services:
       postgres:
         condition: service_healthy
 
+  weak_app:
+    container_name: weak_app
+    build:
+      context: ./Api/WeakApp
+      dockerfile: Dockerfile
+    ports:
+    - "8080:8080"
+
   migrations:
     container_name: auth-migrations
     build:
