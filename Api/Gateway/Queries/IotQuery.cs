@@ -42,4 +42,6 @@ public static class IotQuery
 				}
 			}
 		 };
+    public static Task<Iot> GetIot([Service] HttpIotClient client)
+        => client.GetMetersAsync();
 }
