@@ -1,6 +1,9 @@
+using Gateway.Types;
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Gateway.Types;
+using System.Threading.Tasks;
 
 namespace Gateway.Services;
 
@@ -16,9 +19,8 @@ public class HttpIotClient
 
     public HttpIotClient(HttpClient httpClient, IConfiguration configuration)
     {
-        var baseUrl = configuration["Iot:BaseUrl"] ?? "http://localhost:8080";
-        httpClient.BaseAddress = new Uri(baseUrl);
-        httpClient.DefaultRequestHeaders.Add("X-Api-Key", "test");
+        httpClient.BaseAddress = new Uri(configuration["Iot:BaseUrl"]!);
+        httpClient.DefaultRequestHeaders.Add("X-Api-Key", configuration["Iot:ApiKey"]!);
         _httpClient = httpClient;
     }
 
