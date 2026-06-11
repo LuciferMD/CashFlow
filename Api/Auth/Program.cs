@@ -1,15 +1,22 @@
 using Auth.Extensions;
 using Auth.Interfaces;
+using Auth.Infrastructure;
 using Auth.Models;
 using Auth.Repositories;
 using Auth.Repositories.Context;
 using Auth.Services;
+using DotNetEnv;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.EntityFrameworkCore;
 
+var repoRoot = RepoRoot.Find();
+var envPath = Path.Combine(repoRoot, ".env");
+if (File.Exists(envPath))
+    Env.Load(envPath);
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(nameof(JwtOptions)));
+var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
 
 builder.Services.AddCors(options =>
 {
@@ -27,7 +34,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository,UserRepository>();
 builder.Services.AddScoped<IJwtProvider,JwtProvider>();
-builder.Services.AddApiAuthentication(builder.Configuration);
+builder.Services.AddApiAuthentication(jwtOptions);
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -42,7 +49,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("Frontend");
 
-// Comment out or remove HttpsRedirection in dev ó it causes preflight redirects
+// Comment out or remove HttpsRedirection in dev ù it causes preflight redirects
 //app.UseHttpsRedirection();
 
 app.UseCookiePolicy(new CookiePolicyOptions
