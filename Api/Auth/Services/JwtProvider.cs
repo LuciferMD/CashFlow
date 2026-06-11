@@ -1,11 +1,11 @@
-﻿using Auth.Interfaces;
+﻿using Auth.Infrastructure;
+using Auth.Interfaces;
 using Auth.Models;
 using Auth.Repositories.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace Auth.Services
 {
@@ -18,17 +18,17 @@ namespace Auth.Services
             Claim[] claims = [new("userId", user.Id.ToString())];
 
             var signingCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey)),
-                SecurityAlgorithms.HmacSha256);
+                RsaKeyLoader.LoadPrivateKey(_options.PrivateKeyPath),
+                SecurityAlgorithms.RsaSha256);
 
             var token = new JwtSecurityToken(
+                issuer: _options.Issuer,
+                audience: _options.Audience,
                 claims: claims,
-                signingCredentials: signingCredentials,
-                expires: DateTime.UtcNow.AddHours(_options.ExpiersHours));
+                expires: DateTime.UtcNow.AddHours(_options.ExpiersHours),
+                signingCredentials: signingCredentials);
 
-            var tokenValue = new JwtSecurityTokenHandler().WriteToken(token);
-
-            return tokenValue; 
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
