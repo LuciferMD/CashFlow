@@ -17,6 +17,12 @@ export default defineConfig({
     https: {
       key: fs.readFileSync('./.vite/cert/localhost+2-key.pem'),
       cert: fs.readFileSync('./.vite/cert/localhost+2.pem'),
-    }
+    },
+    proxy: {
+      '/graphql': {
+        target: 'http://localhost:5095',
+        changeOrigin: true,
+      },
+    },
   }
 })
