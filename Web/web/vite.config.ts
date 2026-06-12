@@ -20,7 +20,11 @@ export default defineConfig({
     },
     proxy: {
       '/graphql': {
-        target: 'http://localhost:5095',
+        target: process.env.GATEWAY_PROXY_TARGET ?? 'http://localhost:5095',
+        changeOrigin: true,
+      },
+      '/auth': {
+        target: process.env.AUTH_PROXY_TARGET ?? 'http://localhost:5046',
         changeOrigin: true,
       },
     },

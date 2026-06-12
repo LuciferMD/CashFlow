@@ -85,7 +85,12 @@ services:
       - "3000:5173"
     environment:
       NODE_ENV: development
+      VITE_AUTH_API_URL: ""
+      AUTH_PROXY_TARGET: http://api:80
+      GATEWAY_PROXY_TARGET: http://gateway:80
     volumes:
+      - ./Web/web:/react-app
+      - /react-app/node_modules
       - ./Web/web/.vite/cert:/react-app/.vite/cert:ro
     stdin_open: true
     tty: true

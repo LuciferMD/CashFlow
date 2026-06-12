@@ -39,13 +39,17 @@ export function RegisterPage() {
       return;
     }
 
-    register(formData.name, formData.email, formData.password).then((result) => {
-      if (result) {
-        navigate("/dashboard");
-      } else {
-        setError("Something went wrong. Please try again");
-      }
-    });
+    register(formData.name, formData.email, formData.password)
+      .then((result) => {
+        if (result) {
+          navigate("/dashboard");
+        } else {
+          setError("Something went wrong. Please try again");
+        }
+      })
+      .catch(() => {
+        setError("Could not reach the server. Is the Auth API running?");
+      });
   };
 
   return (
