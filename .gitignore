@@ -366,3 +366,5 @@ FodyWeavers.xsd
 **/appsettings.Production.json
 .env
 keys
+/Api/HistoryStore/history_store/.idea
+/.idea
