@@ -88,6 +88,7 @@ services:
       VITE_AUTH_API_URL: ""
       AUTH_PROXY_TARGET: http://api:80
       GATEWAY_PROXY_TARGET: http://gateway:80
+      HISTORY_PROXY_TARGET: http://history_store:4000
     volumes:
       - ./Web/web:/react-app
       - /react-app/node_modules
@@ -96,6 +97,35 @@ services:
     tty: true
     command: npm run dev -- --host
 
+  mongodb:
+    image: mongo:7-jammy
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  history_store:
+    container_name: history_store
+    build:
+      context: ./Api/HistoryStore/history_store
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./keys:/app/keys:ro
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/history_store
+      PORT: "4000"
+      JwtOptions__PublicKeyPath: /app/keys/jwt-public.pem
+      JwtOptions__Issuer: CashFlow.Auth
+      JwtOptions__Audience: CashFlow
+      INTERNAL_API_KEY: ${HISTORY_INTERNAL_API_KEY:-}
+    depends_on:
+      - mongodb
+
 
 volumes:
  postgres_data:
+ mongodb_data:
