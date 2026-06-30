@@ -2,10 +2,12 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const { config } = require('./src/config');
 const { connectDb } = require('./src/db/connection');
+const { startKafkaConsumer } = require('./src/kafka/consumer');
 const historyRouter = require('./src/routes/history');
 
 async function main() {
   await connectDb();
+  await startKafkaConsumer();
 
   const app = express();
 

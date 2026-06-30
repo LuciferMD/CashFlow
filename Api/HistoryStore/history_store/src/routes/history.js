@@ -2,18 +2,9 @@ const { Router } = require('express');
 const { Snapshot } = require('../db/snapshot.model');
 const { requireAuth } = require('../middleware/auth');
 const { requireInternalKey } = require('../middleware/internalAuth');
+const { isValidDevice } = require('../services/snapshotService');
 
 const router = Router();
-
-function isValidDevice(device) {
-  return (
-    device &&
-    typeof device.type === 'string' &&
-    typeof device.name === 'string' &&
-    device.payload &&
-    typeof device.payload === 'object'
-  );
-}
 
 /**
  * POST /snapshots
