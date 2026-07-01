@@ -30,6 +30,7 @@ builder.AddGraphQL()
     .AddTypes();
 
 builder.Services.AddHttpClient<HttpIotClient>();
+builder.Services.AddKafkaPublishing(builder.Configuration);
 
 var app = builder.Build();
 

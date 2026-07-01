@@ -29,6 +29,34 @@ services:
     ports:
     - "8080:8080"
 
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
   gateway:
     container_name: gateway
     build:
@@ -43,8 +71,13 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - Iot__BaseUrl=http://weak_app:8080
       - Iot__ApiKey=supersecret
+      - Kafka__Brokers=kafka:9092
+      - Kafka__Topic__IotSnapshots=iot.snapshots
     depends_on:
-      - weak_app
+      kafka:
+        condition: service_healthy
+      weak_app:
+        condition: service_started
 
   migrations:
     container_name: auth-migrations
@@ -122,8 +155,14 @@ services:
       JwtOptions__Issuer: CashFlow.Auth
       JwtOptions__Audience: CashFlow
       INTERNAL_API_KEY: ${HISTORY_INTERNAL_API_KEY:-}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC_IOT_SNAPSHOTS: iot.snapshots
+      KAFKA_GROUP_ID: history-store
     depends_on:
-      - mongodb
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
 
 
 volumes:

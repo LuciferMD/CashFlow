@@ -7,8 +7,16 @@ namespace Gateway.Types;
 public static class IotQuery
 {
     [Authorize]
-    public static Task<Iot> GetIot([Service] HttpIotClient client)
+    public static async Task<Iot> GetIot(
+        [Service] HttpIotClient client,
+        [Service] IIotSnapshotPublisher publisher,
+        CancellationToken cancellationToken)
     {
-        return client.GetMetersAsync();
+        var iot = await client.GetMetersAsync();
+
+        if (iot.Devices.Count > 0)
+            await publisher.PublishAsync(iot, cancellationToken);
+
+        return iot;
     }
 }

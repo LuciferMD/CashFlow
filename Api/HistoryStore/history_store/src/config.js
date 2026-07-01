@@ -52,6 +52,16 @@ const config = {
   api: {
     port: parseInt(process.env['PORT'] ?? '4000', 10),
   },
+  kafka: {
+    enabled: Boolean(process.env['KAFKA_BROKERS']),
+    brokers: (process.env['KAFKA_BROKERS'] ?? '')
+      .split(',')
+      .map((broker) => broker.trim())
+      .filter(Boolean),
+    topicIotSnapshots:
+      process.env['KAFKA_TOPIC_IOT_SNAPSHOTS'] ?? 'iot.snapshots',
+    groupId: process.env['KAFKA_GROUP_ID'] ?? 'history-store',
+  },
 };
 
 module.exports = { config };
