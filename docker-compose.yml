@@ -122,6 +122,7 @@ services:
       AUTH_PROXY_TARGET: http://api:80
       GATEWAY_PROXY_TARGET: http://gateway:80
       HISTORY_PROXY_TARGET: http://history_store:4000
+      NOTIFICATION_PROXY_TARGET: http://notification:80
     volumes:
       - ./Web/web:/react-app
       - /react-app/node_modules
@@ -163,6 +164,27 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_started
+
+
+  notification:
+    container_name: notification
+    build:
+      context: ./Api/Notification
+      dockerfile: Dockerfile
+    ports:
+      - "6000:80"
+    environment:
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Kafka__Brokers=kafka:9092
+      - Kafka__GroupId=notification-service
+      - Kafka__Topic__IotSnapshots=iot.snapshots
+      - Notification__HumidityThreshold=70
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
+      - Telegram__ChatId=${TELEGRAM_CHAT_ID:-}
+    depends_on:
+      kafka:
+        condition: service_healthy
 
 
 volumes:

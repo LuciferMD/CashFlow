@@ -6,6 +6,7 @@ import {
   type IotDevice,
   type IotHistoryEntry,
 } from "../../../entities/iot";
+import { useNotificationHub } from "../use-notification-hub/useNotificationHub";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -46,6 +47,15 @@ export function useIotDashboard() {
     const timer = window.setInterval(() => void refresh(true), REFRESH_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [refresh]);
+
+  // Real-time updates from SignalR — replaces the next polling cycle immediately.
+  useNotificationHub({
+    onIotSnapshot: useCallback((nextDevices: IotDevice[]) => {
+      setDevices(nextDevices);
+      setLastUpdated(new Date().toISOString());
+      setHistory(appendHistorySnapshot(nextDevices));
+    }, []),
+  });
 
   return {
     devices,
