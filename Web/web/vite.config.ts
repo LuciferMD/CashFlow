@@ -27,6 +27,11 @@ export default defineConfig({
         target: process.env.AUTH_PROXY_TARGET ?? 'http://localhost:5046',
         changeOrigin: true,
       },
+      '/hubs': {
+        target: process.env.NOTIFICATION_PROXY_TARGET ?? 'http://localhost:6000',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   }
 })
