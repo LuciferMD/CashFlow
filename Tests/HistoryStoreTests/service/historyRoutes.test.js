@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Integration tests for the history routes (Express + Mongoose).
+ * Service tests for the history routes (Express + Mongoose).
  *
  * These tests are intentionally left as a detailed roadmap.
  * To activate them:
@@ -96,7 +96,7 @@
  */
 
 // Placeholder test so Jest doesn't report "no tests found"
-describe('HistoryStore integration tests (placeholder)', () => {
+describe('HistoryStore service tests (placeholder)', () => {
   it('are ready to implement — see comments in this file for the roadmap', () => {
     expect(true).toBe(true);
   });

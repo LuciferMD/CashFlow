@@ -1,7 +1,7 @@
 {
   "name": "history-store-tests",
   "version": "1.0.0",
-  "description": "Jest unit and integration tests for the HistoryStore Node.js service",
+  "description": "Jest unit and service tests for the HistoryStore Node.js service",
   "type": "commonjs",
   "scripts": {
     "test": "jest",
@@ -15,7 +15,7 @@
     "testEnvironment": "node",
     "testMatch": [
       "**/unit/**/*.test.js",
-      "**/integration/**/*.test.js"
+      "**/service/**/*.test.js"
     ],
     "coverageDirectory": "coverage",
     "collectCoverageFrom": [

@@ -1,5 +1,5 @@
 // ┌─────────────────────────────────────────────────────────────────────────┐
-// │  Integration tests – Gateway service                                    │
+// │  Service tests – Gateway service                                        │
 // │                                                                         │
 // │  Scope: a real in-process HotChocolate GraphQL host plus real           │
 // │  infrastructure spun up via Testcontainers.                             │
@@ -12,7 +12,7 @@
 // │  server (WireMock.Net) or by replacing HttpIotClient with a stub.       │
 // └─────────────────────────────────────────────────────────────────────────┘
 
-namespace GatewayTests.Integration;
+namespace GatewayTests.Service;
 
 // ----- Planned test cases ---------------------------------------------------
 //
@@ -68,7 +68,7 @@ namespace GatewayTests.Integration;
 //
 // ---------------------------------------------------------------------------
 
-public sealed class GatewayIntegrationTests
+public sealed class GatewayServiceTests
 {
     // Placeholder — implement tests listed above using the factory pattern above.
 }

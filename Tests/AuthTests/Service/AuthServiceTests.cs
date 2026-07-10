@@ -1,5 +1,5 @@
 // ┌─────────────────────────────────────────────────────────────────────────┐
-// │  Integration tests – Auth service                                       │
+// │  Service tests – Auth service                                           │
 // │                                                                         │
 // │  Scope: a real in-process ASP.NET Core host (WebApplicationFactory)     │
 // │  against a real PostgreSQL database spun up via Testcontainers.         │
@@ -12,7 +12,7 @@
 // │  rather than relying on file paths from the repo.                       │
 // └─────────────────────────────────────────────────────────────────────────┘
 
-namespace AuthTests.Integration;
+namespace AuthTests.Service;
 
 // ----- Planned test cases ---------------------------------------------------
 //
@@ -77,7 +77,7 @@ namespace AuthTests.Integration;
 //
 // ---------------------------------------------------------------------------
 
-public sealed class AuthIntegrationTests
+public sealed class AuthServiceTests
 {
     // Placeholder — implement tests listed above using the factory pattern above.
 }
