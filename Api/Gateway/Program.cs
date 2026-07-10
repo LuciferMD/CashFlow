@@ -49,3 +49,6 @@ app.UseAuthorization();
 app.MapGraphQL();
 
 app.RunWithGraphQLCommands(args);
+
+// Exposed for WebApplicationFactory in service tests.
+public partial class Program;

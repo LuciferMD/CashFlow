@@ -1,74 +1,101 @@
-// ┌─────────────────────────────────────────────────────────────────────────┐
-// │  Service tests – Gateway service                                        │
-// │                                                                         │
-// │  Scope: a real in-process HotChocolate GraphQL host plus real           │
-// │  infrastructure spun up via Testcontainers.                             │
-// │                                                                         │
-// │  Required packages to add when implementing:                            │
-// │    Testcontainers.Kafka                                                 │
-// │    Microsoft.AspNetCore.Mvc.Testing                                     │
-// │                                                                         │
-// │  The WeakApp IoT upstream can be mocked via a lightweight WireMock      │
-// │  server (WireMock.Net) or by replacing HttpIotClient with a stub.       │
-// └─────────────────────────────────────────────────────────────────────────┘
+using System.Text.Json;
+using FluentAssertions;
 
 namespace GatewayTests.Service;
 
-// ----- Planned test cases ---------------------------------------------------
-//
-// [Fact] GetIot_WithoutAuth_Returns401
-//   POST /graphql { query: "{ iot { devices { name } } }" } — no cookie
-//   → 401 Unauthorized
-//
-// [Fact] GetIot_WithValidJwt_ReturnsDevices
-//   POST /graphql with GuardPass cookie containing a valid JWT
-//   → 200, body contains expected devices from stubbed WeakApp
-//
-// [Fact] GetIot_WhenWeakAppReturnsData_PublishesToKafka
-//   1. Start Testcontainers Kafka + stub WeakApp (WireMock)
-//   2. Execute authenticated GraphQL query
-//   3. Consume from "iot.snapshots" topic
-//   4. Assert a message was produced with the correct device data
-//
-// [Fact] GetIot_WhenWeakAppReturnsEmptyArray_DoesNotPublishToKafka
-//   WeakApp returns [] → publisher.PublishAsync is never called
-//   → no message in Kafka
-//
-// [Fact] GetIot_WhenWeakAppIs429_StillReturnsEmptyDevices
-//   WeakApp always returns 429 → all retries exhausted → empty Iot returned
-//   (run with a very short retry delay in test config)
-//
-// [Fact] GetIot_WhenWeakAppIs500_StillReturnsEmptyDevices
-//   WeakApp always returns 500 → all retries exhausted → empty Iot returned
-//
-// ---------------------------------------------------------------------------
-//
-// Example factory setup (add when ready):
-//
-//   internal sealed class GatewayFactory : WebApplicationFactory<Program>
-//   {
-//       private readonly string _kafkaBrokers;
-//       private readonly string _iotBaseUrl;   // WireMock server URL
-//       private readonly string _publicKeyPath;
-//
-//       protected override void ConfigureWebHost(IWebHostBuilder builder)
-//       {
-//           builder.ConfigureAppConfiguration((_, cfg) =>
-//               cfg.AddInMemoryCollection(new Dictionary<string, string?>
-//               {
-//                   ["Kafka:Brokers"]      = _kafkaBrokers,
-//                   ["Iot:BaseUrl"]        = _iotBaseUrl,
-//                   ["Iot:ApiKey"]         = "test-key",
-//                   ["JwtOptions:PublicKeyPath"] = _publicKeyPath,
-//                   ["JwtOptions:Issuer"]  = "test",
-//                   ["JwtOptions:Audience"] = "test",
-//               }));
-//       }
-//   }
-//
-// ---------------------------------------------------------------------------
-
+/// <summary>
+/// Service-level tests for the Gateway GraphQL API.
+/// Uses WebApplicationFactory + Testcontainers Kafka + WireMock (IoT upstream).
+/// Only the Gateway service is exercised — no Auth, Notification, or HistoryStore.
+/// </summary>
+[Collection(nameof(GatewayServiceCollection))]
+[Trait("Category", "Service")]
 public sealed class GatewayServiceTests
 {
-    // Placeholder — implement tests listed above using the factory pattern above.
+    private readonly GatewayServiceFixture _fixture;
+
+    public GatewayServiceTests(GatewayServiceFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task GetIot_WithoutAuth_ReturnsGraphQlUnauthorizedError()
+    {
+        var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        using var doc = await ServiceTestHelpers.ReadJsonAsync(response);
+        ServiceTestHelpers.AssertGraphQlUnauthorized(doc);
+    }
+
+    [Fact]
+    public async Task GetIot_WithValidJwt_ReturnsDevicesFromStub()
+    {
+        await _fixture.ConfigureIotStubAsync(ServiceTestHelpers.SingleDeviceJson);
+        var jwt = _fixture.CreateJwt();
+
+        var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory, jwt);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+
+        using var doc = await ServiceTestHelpers.ReadJsonAsync(response);
+        var deviceName = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("iot")
+            .GetProperty("devices")[0]
+            .GetProperty("name")
+            .GetString();
+
+        deviceName.Should().Be("Kitchen");
+    }
+
+    [Fact]
+    public async Task GetIot_WhenUpstreamReturnsData_PublishesToKafka()
+    {
+        await _fixture.ConfigureIotStubAsync(ServiceTestHelpers.SingleDeviceJson);
+        var jwt = _fixture.CreateJwt();
+
+        var kafkaMessage = await ServiceTestHelpers.ConsumeKafkaMessageAfterAsync(
+            _fixture.BootstrapServers,
+            "iot.snapshots",
+            async () =>
+            {
+                var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory, jwt);
+                response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+            },
+            TimeSpan.FromSeconds(20));
+
+        kafkaMessage.Should().NotBeNullOrEmpty();
+        kafkaMessage.Should().Contain("Kitchen");
+    }
+
+    [Fact]
+    public async Task GetIot_WithInvalidJwt_ReturnsGraphQlUnauthorizedError()
+    {
+        var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory, "not-a-valid-jwt");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        using var doc = await ServiceTestHelpers.ReadJsonAsync(response);
+        ServiceTestHelpers.AssertGraphQlUnauthorized(doc);
+    }
+
+    [Fact(Timeout = 120_000)]
+    public async Task GetIot_WhenUpstreamReturns500_ReturnsEmptyDevices()
+    {
+        await _fixture.ConfigureIotStubAsync("upstream failure", statusCode: 500);
+        var jwt = _fixture.CreateJwt();
+
+        var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory, jwt);
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+
+        using var doc = await ServiceTestHelpers.ReadJsonAsync(response);
+        doc.RootElement
+            .GetProperty("data")
+            .GetProperty("iot")
+            .GetProperty("devices")
+            .GetArrayLength()
+            .Should()
+            .Be(0);
+    }
 }
