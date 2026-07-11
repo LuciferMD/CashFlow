@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:contract": "vitest run src/__tests__/contract",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
@@ -72,6 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@pact-foundation/pact": "^17.0.1",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

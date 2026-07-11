@@ -1,0 +1,194 @@
+{
+  "consumer": {
+    "name": "Notification"
+  },
+  "interactions": [
+    {
+      "contents": {
+        "content": {
+          "capturedAt": "2024-06-15T10:00:00.000Z",
+          "devices": [
+            {
+              "name": "Kitchen",
+              "payload": {
+                "co2": 400,
+                "energy": 1.5,
+                "humidity": 60,
+                "pm25": 10
+              },
+              "type": "sensor"
+            }
+          ]
+        },
+        "contentType": "application/json",
+        "encoded": false
+      },
+      "description": "an IoT snapshot with device readings",
+      "matchingRules": {
+        "body": {
+          "$.capturedAt": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type",
+                "min": 1
+              }
+            ]
+          },
+          "$.devices[*].name": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].payload.co2": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].payload.energy": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].payload.humidity": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].payload.pm25": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].type": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "contentType": "application/json"
+      },
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "Gateway published a snapshot to iot.snapshots"
+        }
+      ],
+      "type": "Asynchronous/Messages"
+    },
+    {
+      "contents": {
+        "content": {
+          "capturedAt": "2024-06-15T10:00:00.000Z",
+          "devices": [
+            {
+              "name": "Hall",
+              "payload": {
+                "humidity": 55
+              },
+              "type": "sensor"
+            }
+          ]
+        },
+        "contentType": "application/json",
+        "encoded": false
+      },
+      "description": "an IoT snapshot with nullable payload fields",
+      "matchingRules": {
+        "body": {
+          "$.capturedAt": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type",
+                "min": 1
+              }
+            ]
+          },
+          "$.devices[*].name": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].payload.humidity": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          },
+          "$.devices[*].type": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "type"
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "contentType": "application/json"
+      },
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "Gateway published a snapshot with sparse device payload"
+        }
+      ],
+      "type": "Asynchronous/Messages"
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.23",
+      "models": "1.2.5"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "Gateway"
+  }
+}

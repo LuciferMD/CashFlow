@@ -1,95 +1,108 @@
-// ┌─────────────────────────────────────────────────────────────────────────┐
-// │  Consumer-Driven Contract (CDC) tests – Notification service            │
-// │                                                                         │
-// │  Role: CONSUMER of the "iot.snapshots" Kafka topic                      │
-// │  Producer: Gateway service (publishes IotSnapshotMessage)               │
-// │                                                                         │
-// │  Tool: PactNet v5  (https://github.com/pact-foundation/pact-net)        │
-// │                                                                         │
-// │  Required packages to add when implementing:                            │
-// │    PactNet                                                              │
-// │    PactNet.Output.Xunit                                                 │
-// │                                                                         │
-// │  Pact workflow:                                                         │
-// │    1. Consumer test (this file) generates a pact JSON file              │
-// │       describing the message schema Notification expects.               │
-// │    2. Producer verification (Gateway.Tests.Contract) runs against       │
-// │       the real Gateway and verifies it satisfies the pact.              │
-// │    3. Both sides share pacts via a Pact Broker                          │
-// │       (self-hosted or pactflow.io) or via the file system in CI.        │
-// └─────────────────────────────────────────────────────────────────────────┘
+using System.Text.Json;
+using Notification.Kafka;
+using Notification.Services;
+using PactNet;
+using PactNet.Matchers;
+using PactNet.Output.Xunit;
+using Xunit.Abstractions;
 
 namespace NotificationTests.Contract;
 
-// ----- Planned test cases ---------------------------------------------------
-//
-// [Fact] Notification_Expects_IotSnapshotMessage_WithRequiredFields
-//   Defines the consumer pact:
-//   {
-//     "capturedAt": <ISO-8601 DateTime>,
-//     "devices": [
-//       {
-//         "type":    <non-empty string>,
-//         "name":    <non-empty string>,
-//         "payload": {
-//           "humidity": <nullable double>
-//         }
-//       }
-//     ]
-//   }
-//   Verifies SnapshotProcessor.ProcessAsync handles this message correctly.
-//
-// [Fact] Notification_Expects_IotSnapshotMessage_WithNullPayload_IsHandledGracefully
-//   Devices with null payload must not crash the consumer.
-//
-// [Fact] Notification_Expects_IotSnapshotMessage_WithMissingHumidity_IsHandledGracefully
-//   Devices with payload but no humidity field must not crash the consumer.
-//
-// ---------------------------------------------------------------------------
-//
-// Example pact setup using PactNet v5 message pacts (Kafka / async):
-//
-//   public class NotificationConsumerContractTests
-//   {
-//       private readonly IMessagePactBuilderV4 _pact;
-//
-//       public NotificationConsumerContractTests()
-//       {
-//           _pact = Pact.V4("Notification", "Gateway", new PactConfig
-//               {
-//                   PactDir = Path.Combine(Directory.GetCurrentDirectory(), "pacts"),
-//                   LogLevel = PactLogLevel.Warn,
-//               })
-//               .WithMessageInteractions();
-//       }
-//
-//       [Fact]
-//       public async Task Notification_Expects_IotSnapshotMessage_WithRequiredFields()
-//       {
-//           await _pact
-//               .ExpectsToReceive("an IoT snapshot with one device")
-//               .WithMetadata("contentType", "application/json")
-//               .WithJsonContent(new
-//               {
-//                   capturedAt = Match.Type(DateTime.UtcNow),
-//                   devices = Match.MinType(new
-//                   {
-//                       type    = Match.Type("sensor"),
-//                       name    = Match.Type("room-1"),
-//                       payload = new { humidity = Match.Decimal(65.4) },
-//                   }, 1),
-//               })
-//               .VerifyAsync<IotSnapshotMessage>(async msg =>
-//               {
-//                   var processor = BuildProcessor(); // create with mocked deps
-//                   await processor.ProcessAsync(msg);
-//               });
-//       }
-//   }
-//
-// ---------------------------------------------------------------------------
-
+/// <summary>
+/// Consumer-driven contract: Notification expects IoT snapshot messages from Gateway on "iot.snapshots".
+/// Generates Tests/pacts/Notification-Gateway.json for Gateway provider verification.
+/// </summary>
+[Trait("Category", "Contract")]
 public sealed class NotificationConsumerContractTests
 {
-    // Placeholder — implement contracts listed above.
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    private static int _pactInitialized;
+
+    private readonly IMessagePactBuilderV4 _messagePact;
+
+    public NotificationConsumerContractTests(ITestOutputHelper output)
+    {
+        Directory.CreateDirectory(ContractPaths.PactsDirectory);
+
+        if (Interlocked.CompareExchange(ref _pactInitialized, 1, 0) == 0)
+        {
+            var pactFile = ContractPaths.NotificationGatewayPact;
+            if (File.Exists(pactFile))
+            {
+                File.Delete(pactFile);
+            }
+        }
+
+        var pact = Pact.V4("Notification", "Gateway", new PactConfig
+        {
+            PactDir = ContractPaths.PactsDirectory,
+            LogLevel = PactLogLevel.Warn,
+            DefaultJsonSettings = JsonOptions,
+            Outputters = [new XunitOutput(output)],
+        });
+
+        _messagePact = pact.WithMessageInteractions();
+    }
+
+    [Fact]
+    public void Notification_Expects_IotSnapshotMessage_WithDeviceReadings()
+    {
+        _messagePact
+            .ExpectsToReceive("an IoT snapshot with device readings")
+            .Given("Gateway published a snapshot to iot.snapshots")
+            .WithMetadata("contentType", "application/json")
+            .WithJsonContent(new
+            {
+                capturedAt = Match.Type("2024-06-15T10:00:00.000Z"),
+                devices = Match.MinType(new
+                {
+                    type = Match.Type("sensor"),
+                    name = Match.Type("Kitchen"),
+                    payload = new
+                    {
+                        co2 = Match.Type(400),
+                        pm25 = Match.Type(10),
+                        humidity = Match.Type(60),
+                        energy = Match.Type(1.5),
+                    },
+                }, 1),
+            })
+            .Verify<IotSnapshotMessage>(snapshot =>
+            {
+                var processor = ContractTestHelpers.CreateProcessor();
+                processor.ProcessAsync(snapshot).GetAwaiter().GetResult();
+            });
+    }
+
+    [Fact]
+    public void Notification_Expects_IotSnapshotMessage_WithNullablePayloadFields()
+    {
+        _messagePact
+            .ExpectsToReceive("an IoT snapshot with nullable payload fields")
+            .Given("Gateway published a snapshot with sparse device payload")
+            .WithMetadata("contentType", "application/json")
+            .WithJsonContent(new
+            {
+                capturedAt = Match.Type("2024-06-15T10:00:00.000Z"),
+                devices = Match.MinType(new
+                {
+                    type = Match.Type("sensor"),
+                    name = Match.Type("Hall"),
+                    payload = new
+                    {
+                        humidity = Match.Type(55),
+                    },
+                }, 1),
+            })
+            .Verify<IotSnapshotMessage>(snapshot =>
+            {
+                var processor = ContractTestHelpers.CreateProcessor();
+                processor.ProcessAsync(snapshot).GetAwaiter().GetResult();
+            });
+    }
 }

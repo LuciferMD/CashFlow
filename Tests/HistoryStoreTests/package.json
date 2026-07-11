@@ -7,6 +7,7 @@
     "test": "jest",
     "test:unit": "jest unit/",
     "test:service": "jest service/",
+    "test:contract": "jest contract/",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -17,7 +18,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongodb-memory-server": "^10.1.4",
     "mongoose": "^9.7.2",
-    "supertest": "^7.1.1"
+    "supertest": "^7.1.1",
+    "@pact-foundation/pact": "^13.2.0"
   },
   "jest": {
     "projects": [
@@ -33,6 +35,11 @@
         "moduleNameMapper": {
           "^mongoose$": "<rootDir>/node_modules/mongoose"
         }
+      },
+      {
+        "displayName": "contract",
+        "testEnvironment": "node",
+        "testMatch": ["**/contract/**/*.test.js"]
       }
     ],
     "coverageDirectory": "coverage",

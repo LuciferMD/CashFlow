@@ -27,10 +27,22 @@ interface GraphQlResponse {
   errors?: Array<{ message: string }>;
 }
 
-export async function fetchIot(): Promise<IotDevice[]> {
-  const response = await fetch(config.gatewayApiUrl, {
+export async function fetchIot(options?: {
+  baseUrl?: string;
+  token?: string;
+}): Promise<IotDevice[]> {
+  const baseUrl = options?.baseUrl ?? config.gatewayApiUrl;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (options?.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  const response = await fetch(baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     credentials: "include",
     body: JSON.stringify({ query: IOT_QUERY }),
   });
