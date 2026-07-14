@@ -29,7 +29,7 @@ public class HttpIotClient
         _pipeline = BuildPipeline();
     }
 
-    private static ResiliencePipeline<Iot> BuildPipeline() =>
+    private ResiliencePipeline<Iot> BuildPipeline() =>
         new ResiliencePipelineBuilder<Iot>()
             .AddRetry(new RetryStrategyOptions<Iot>
             {
@@ -49,6 +49,10 @@ public class HttpIotClient
                 },
                 OnRetry = args =>
                 {
+                    _logger.LogWarning(
+                        args.Outcome.Exception,
+                        "IoT /meters attempt {AttemptNumber} failed — retrying.",
+                        args.AttemptNumber + 1);
 
                     return ValueTask.CompletedTask;
                 }

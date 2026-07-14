@@ -8,63 +8,90 @@ using Auth.Services;
 using DotNetEnv;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
-var repoRoot = RepoRoot.Find();
-var envPath = Path.Combine(repoRoot, ".env");
-if (File.Exists(envPath))
-    Env.Load(envPath);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
-
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("Frontend", policy =>
-        policy
-            .WithOrigins("https://localhost:5173", "https://localhost:3000")
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod());
-});
+    var repoRoot = RepoRoot.Find();
+    var envPath = Path.Combine(repoRoot, ".env");
+    if (File.Exists(envPath))
+        Env.Load(envPath);
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IUserRepository,UserRepository>();
-builder.Services.AddScoped<IJwtProvider,JwtProvider>();
-builder.Services.AddApiAuthentication(jwtOptions);
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-    .UseSnakeCaseNamingConvention());
-var app = builder.Build();
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Frontend", policy =>
+            policy
+                .WithOrigins("https://localhost:5173", "https://localhost:3000")
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+    });
+
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IUserRepository,UserRepository>();
+    builder.Services.AddScoped<IJwtProvider,JwtProvider>();
+    builder.Services.AddApiAuthentication(jwtOptions);
+
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .UseSnakeCaseNamingConvention());
+
+    var app = builder.Build();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseSerilogRequestLogging();
+
+    app.UseCors("Frontend");
+
+    // Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
+    //app.UseHttpsRedirection();
+
+    app.UseCookiePolicy(new CookiePolicyOptions
+    {
+        MinimumSameSitePolicy = SameSiteMode.Strict,
+        HttpOnly = HttpOnlyPolicy.Always,
+        Secure = CookieSecurePolicy.SameAsRequest
+    });
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    Log.Information("Auth service starting in {Environment}", app.Environment.EnvironmentName);
+
+    app.Run();
 }
-
-app.UseCors("Frontend");
-
-// Comment out or remove HttpsRedirection in dev ù it causes preflight redirects
-//app.UseHttpsRedirection();
-
-app.UseCookiePolicy(new CookiePolicyOptions
+catch (Exception ex)
 {
-    MinimumSameSitePolicy = SameSiteMode.Strict,
-    HttpOnly = HttpOnlyPolicy.Always,
-    Secure = CookieSecurePolicy.SameAsRequest
-});
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
+    Log.Fatal(ex, "Auth service terminated unexpectedly");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Exposed for WebApplicationFactory in service tests.
 public partial class Program;

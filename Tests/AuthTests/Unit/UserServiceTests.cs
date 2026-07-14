@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Auth.Interfaces;
 using Auth.Models;
@@ -17,7 +18,7 @@ public sealed class UserServiceTests
     {
         _mockRepo = new Mock<IUserRepository>();
         _mockJwt = new Mock<IJwtProvider>();
-        _sut = new UserService(_mockRepo.Object, _mockJwt.Object);
+        _sut = new UserService(_mockRepo.Object, _mockJwt.Object, NullLogger<UserService>.Instance);
     }
 
     // ── Register ─────────────────────────────────────────────────────────────

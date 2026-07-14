@@ -3,52 +3,86 @@ using Gateway.Extensions;
 using Gateway.Infrastructure;
 using Gateway.Services;
 using Microsoft.AspNetCore.CookiePolicy;
+using Serilog;
 
-var repoRoot = RepoRoot.Find();
-var envPath = System.IO.Path.Combine(repoRoot, ".env");
-if (File.Exists(envPath))
-    Env.Load(envPath);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-var jwtOptions = builder.Services.ConfigureJwtValidation(builder.Configuration, repoRoot);
-
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("Frontend", policy =>
-        policy
-            .WithOrigins("https://localhost:5173", "https://localhost:3000")
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod());
-});
+    var repoRoot = RepoRoot.Find();
+    var envPath = System.IO.Path.Combine(repoRoot, ".env");
+    if (File.Exists(envPath))
+        Env.Load(envPath);
 
-builder.Services.AddJwtValidation(jwtOptions);
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.AddGraphQL()
-    .AddAuthorization()
-    .AddTypes();
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
-builder.Services.AddHttpClient<HttpIotClient>();
-builder.Services.AddKafkaPublishing(builder.Configuration);
+    var jwtOptions = builder.Services.ConfigureJwtValidation(builder.Configuration, repoRoot);
 
-var app = builder.Build();
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Frontend", policy =>
+            policy
+                .WithOrigins("https://localhost:5173", "https://localhost:3000")
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+    });
 
-app.UseCors("Frontend");
+    builder.Services.AddJwtValidation(jwtOptions);
 
-app.UseCookiePolicy(new CookiePolicyOptions
+    builder.AddGraphQL()
+        .AddAuthorization()
+        .AddTypes();
+
+    builder.Services.AddHttpClient<HttpIotClient>();
+    builder.Services.AddKafkaPublishing(builder.Configuration);
+
+    var app = builder.Build();
+
+    app.UseSerilogRequestLogging();
+
+    app.UseCors("Frontend");
+
+    app.UseCookiePolicy(new CookiePolicyOptions
+    {
+        MinimumSameSitePolicy = SameSiteMode.Strict,
+        HttpOnly = HttpOnlyPolicy.Always,
+        Secure = CookieSecurePolicy.SameAsRequest
+    });
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapGraphQL();
+
+    var kafkaBrokers = builder.Configuration["Kafka:Brokers"];
+    var kafkaTopic = builder.Configuration["Kafka:Topic:IotSnapshots"];
+    var iotBaseUrl = builder.Configuration["Iot:BaseUrl"];
+    Log.Information(
+        "Gateway service starting in {Environment}. IoT base URL: {IotBaseUrl}, Kafka brokers: {Brokers}, topic: {Topic}",
+        app.Environment.EnvironmentName,
+        iotBaseUrl,
+        kafkaBrokers,
+        kafkaTopic);
+
+    app.RunWithGraphQLCommands(args);
+}
+catch (Exception ex)
 {
-    MinimumSameSitePolicy = SameSiteMode.Strict,
-    HttpOnly = HttpOnlyPolicy.Always,
-    Secure = CookieSecurePolicy.SameAsRequest
-});
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapGraphQL();
-
-app.RunWithGraphQLCommands(args);
+    Log.Fatal(ex, "Gateway service terminated unexpectedly");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Exposed for WebApplicationFactory in service tests.
 public partial class Program;

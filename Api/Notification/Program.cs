@@ -1,83 +1,120 @@
 using DotNetEnv;
+using Microsoft.Extensions.Options;
 using Notification.Hubs;
 using Notification.Infrastructure;
 using Notification.Kafka;
 using Notification.Models;
 using Notification.Services;
+using Serilog;
 
-var repoRoot = RepoRoot.Find();
-var envPath = Path.Combine(repoRoot, ".env");
-if (File.Exists(envPath))
-    Env.Load(envPath);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-// ── Options ───────────────────────────────────────────────────────────────────
-
-builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection("Kafka"));
-builder.Services.Configure<TelegramOptions>(builder.Configuration.GetSection("Telegram"));
-builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection("Notification"));
-
-// ── CORS – allow React frontend to connect over WebSocket ─────────────────────
-
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("Frontend", policy =>
-        policy
-            .WithOrigins(
-                "https://localhost:5173",
-                "https://localhost:3000",
-                "http://localhost:3000",
-                "http://localhost:5173")
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod());
-});
+    var repoRoot = RepoRoot.Find();
+    var envPath = Path.Combine(repoRoot, ".env");
+    if (File.Exists(envPath))
+        Env.Load(envPath);
 
-// ── SignalR ───────────────────────────────────────────────────────────────────
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSignalR();
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
-// ── Telegram ─────────────────────────────────────────────────────────────────
+    // ── Options ───────────────────────────────────────────────────────────────────
 
-builder.Services.AddHttpClient<ITelegramService, TelegramService>();
+    builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection("Kafka"));
+    builder.Services.Configure<TelegramOptions>(builder.Configuration.GetSection("Telegram"));
+    builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection("Notification"));
 
-// ── Core snapshot processing (shared by Kafka consumer and test endpoint) ─────
+    // ── CORS – allow React frontend to connect over WebSocket ─────────────────────
 
-builder.Services.AddSingleton<ISnapshotProcessor, SnapshotProcessor>();
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Frontend", policy =>
+            policy
+                .WithOrigins(
+                    "https://localhost:5173",
+                    "https://localhost:3000",
+                    "http://localhost:3000",
+                    "http://localhost:5173")
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+    });
 
-// ── Kafka consumer ────────────────────────────────────────────────────────────
+    // ── SignalR ───────────────────────────────────────────────────────────────────
 
-builder.Services.AddHostedService<KafkaConsumerService>();
+    builder.Services.AddSignalR();
 
-// ── Health ────────────────────────────────────────────────────────────────────
+    // ── Telegram ─────────────────────────────────────────────────────────────────
 
-builder.Services.AddHealthChecks();
+    builder.Services.AddHttpClient<ITelegramService, TelegramService>();
 
-var app = builder.Build();
+    // ── Core snapshot processing (shared by Kafka consumer and test endpoint) ─────
 
-app.UseCors("Frontend");
-app.UseWebSockets();
-app.UseRouting();
+    builder.Services.AddSingleton<ISnapshotProcessor, SnapshotProcessor>();
 
-// ── Endpoints ─────────────────────────────────────────────────────────────────
+    // ── Kafka consumer ────────────────────────────────────────────────────────────
 
-app.MapHealthChecks("/health");
+    builder.Services.AddHostedService<KafkaConsumerService>();
 
-app.MapHub<NotificationHub>("/hubs/notifications");
+    // ── Health ────────────────────────────────────────────────────────────────────
 
-// Test endpoint – available in all environments so you can verify from Postman
-// without needing Kafka to be running.
-app.MapPost("/test/snapshot", async (
-    IotSnapshotMessage snapshot,
-    ISnapshotProcessor processor,
-    CancellationToken ct) =>
+    builder.Services.AddHealthChecks();
+
+    var app = builder.Build();
+
+    app.UseSerilogRequestLogging();
+
+    app.UseCors("Frontend");
+    app.UseWebSockets();
+    app.UseRouting();
+
+    // ── Endpoints ─────────────────────────────────────────────────────────────────
+
+    app.MapHealthChecks("/health");
+
+    app.MapHub<NotificationHub>("/hubs/notifications");
+
+    // Test endpoint – available in all environments so you can verify from Postman
+    // without needing Kafka to be running.
+    app.MapPost("/test/snapshot", async (
+        IotSnapshotMessage snapshot,
+        ISnapshotProcessor processor,
+        ILogger<Program> logger,
+        CancellationToken ct) =>
+    {
+        logger.LogInformation(
+            "Test snapshot endpoint invoked with {DeviceCount} device(s).",
+            snapshot.Devices.Count);
+        await processor.ProcessAsync(snapshot, ct);
+        return Results.Ok(new { processed = true, deviceCount = snapshot.Devices.Count });
+    });
+
+    var kafka = app.Services.GetRequiredService<IOptions<KafkaOptions>>().Value;
+    Log.Information(
+        "Notification service starting in {Environment}. Kafka brokers: {Brokers}, topic: {Topic}, group: {GroupId}",
+        app.Environment.EnvironmentName,
+        kafka.Brokers,
+        kafka.Topic.IotSnapshots,
+        kafka.GroupId);
+
+    app.Run();
+}
+catch (Exception ex)
 {
-    await processor.ProcessAsync(snapshot, ct);
-    return Results.Ok(new { processed = true, deviceCount = snapshot.Devices.Count });
-});
-
-app.Run();
+    Log.Fatal(ex, "Notification service terminated unexpectedly");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Exposed for WebApplicationFactory in integration tests.
 public partial class Program;
