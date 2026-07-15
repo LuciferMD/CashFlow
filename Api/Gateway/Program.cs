@@ -18,10 +18,8 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, services, configuration) => configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext());
+    builder.Host.UseCashFlowSerilog();
+    builder.Services.AddCashFlowElasticApm(builder.Configuration);
 
     var jwtOptions = builder.Services.ConfigureJwtValidation(builder.Configuration, repoRoot);
 

@@ -1,4 +1,53 @@
 services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_SECURITY_ENABLED=false
+      - XPACK_ENCRYPTED_SAVED_OBJECTS_ENCRYPTION_KEY=dev-only-encryption-key-min-32-chars
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.15.3
+    container_name: apm-server
+    ports:
+      - "8200:8200"
+    command: >
+      apm-server -e
+        -E apm-server.host=0.0.0.0:8200
+        -E output.elasticsearch.hosts=["elasticsearch:9200"]
+        -E setup.kibana.host=kibana:5601
+        -E setup.template.settings.index.number_of_replicas=0
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_started
+
   api:
     container_name: auth
     build:
@@ -17,9 +66,16 @@ services:
       - ASPNETCORE_Kestrel__Certificates__Default__KeyPath=/app/https/key.pem
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - Elasticsearch__Uri=http://elasticsearch:9200
+      - ElasticApm__ServerUrl=http://apm-server:8200
+      - ElasticApm__ServiceName=auth
     depends_on:
       postgres:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      apm-server:
+        condition: service_started
 
   weak_app:
     container_name: weak_app
@@ -73,10 +129,17 @@ services:
       - Iot__ApiKey=supersecret
       - Kafka__Brokers=kafka:9092
       - Kafka__Topic__IotSnapshots=iot.snapshots
+      - Elasticsearch__Uri=http://elasticsearch:9200
+      - ElasticApm__ServerUrl=http://apm-server:8200
+      - ElasticApm__ServiceName=gateway
     depends_on:
       kafka:
         condition: service_healthy
       weak_app:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      apm-server:
         condition: service_started
 
   migrations:
@@ -182,11 +245,19 @@ services:
       - Notification__HumidityThreshold=70
       - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
       - Telegram__ChatId=${TELEGRAM_CHAT_ID:-}
+      - Elasticsearch__Uri=http://elasticsearch:9200
+      - ElasticApm__ServerUrl=http://apm-server:8200
+      - ElasticApm__ServiceName=notification
     depends_on:
       kafka:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      apm-server:
+        condition: service_started
 
 
 volumes:
  postgres_data:
  mongodb_data:
+ elasticsearch_data:
