@@ -1,3 +1,4 @@
+using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Notification.Hubs;
 using Notification.Infrastructure;
@@ -55,6 +56,8 @@ builder.Services.AddHostedService<KafkaConsumerService>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.UseExceptionHandling();
 
 app.UseCors("Frontend");
 app.UseWebSockets();

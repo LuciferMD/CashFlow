@@ -2,14 +2,30 @@ import {config} from "../../../../config/api.ts";
 
 const BASE = config.authApiUrl;
 
-export async function register(userName: string, email: string, password: string) {
+export type RegisterResult =
+  | { ok: true }
+  | { ok: false; message: string };
 
-    const res = await fetch(`${BASE}/auth/register`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        credentials: "include",
-        body: JSON.stringify({userName, email, password}),
-    })
+export async function register(
+  userName: string,
+  email: string,
+  password: string,
+): Promise<RegisterResult> {
+  const res = await fetch(`${BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ userName, email, password }),
+  });
 
-    return res.ok;
+  if (res.ok) {
+    return { ok: true };
+  }
+
+  if (res.status === 409) {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    return { ok: false, message: body?.message ?? "Email already registered" };
+  }
+
+  return { ok: false, message: "Something went wrong. Please try again" };
 }

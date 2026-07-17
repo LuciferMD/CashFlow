@@ -19,12 +19,16 @@ namespace Auth.Repositories
            await _context.SaveChangesAsync();
         }
 
-        public async Task<User> GetByEmail(string email)
+        public async Task<User?> GetByEmail(string email)
         {
-            var user = await _context.Users.AsNoTracking()
+            return await _context.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email == email);
+        }
 
-            return user;
+        public async Task<bool> EmailExists(string email)
+        {
+            return await _context.Users.AsNoTracking()
+                .AnyAsync(u => u.Email == email);
         }
     }
 }

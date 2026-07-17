@@ -41,10 +41,10 @@ export function RegisterPage() {
 
     register(formData.name, formData.email, formData.password)
       .then((result) => {
-        if (result) {
+        if (result.ok) {
           navigate("/dashboard");
         } else {
-          setError("Something went wrong. Please try again");
+          setError(result.message);
         }
       })
       .catch(() => {

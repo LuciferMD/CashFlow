@@ -5,6 +5,7 @@ using Auth.Models;
 using Auth.Repositories;
 using Auth.Repositories.Context;
 using Auth.Services;
+using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.EntityFrameworkCore;
@@ -47,9 +48,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseExceptionHandling();
+
 app.UseCors("Frontend");
 
-// Comment out or remove HttpsRedirection in dev ù it causes preflight redirects
+// Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
 //app.UseHttpsRedirection();
 
 app.UseCookiePolicy(new CookiePolicyOptions

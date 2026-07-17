@@ -15,20 +15,16 @@ namespace Auth.Services
         }
         public async Task<string> Register(UserRequestDto userRequestDto)
         {
+            if (await _userRepository.EmailExists(userRequestDto.Email))
+            {
+                throw new InvalidOperationException("Email already registered");
+            }
+
             var passwordHash = PasswordHasher.Generate(userRequestDto.Password);
             var newUser = User.Create(Guid.NewGuid(), userRequestDto.UserName, userRequestDto.Email, passwordHash);
 
-            try
-            {
-                await _userRepository.Add(newUser);
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            var token = _jwtProvider.GenerateToken(newUser);
-
-            return token;
+            await _userRepository.Add(newUser);
+            return _jwtProvider.GenerateToken(newUser);
         }
 
         public async Task<string> Login(LoginUserRequestDto loginRequest)
