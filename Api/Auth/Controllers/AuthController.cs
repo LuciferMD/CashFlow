@@ -37,17 +37,18 @@ namespace Auth.Controllers
         [HttpPost("login")]
         public async Task<IResult> Login(LoginUserRequestDto loginRequest)
         {
+            _logger.LogInformation("Login request received for {Email}", loginRequest.Email);
+
             var token = await _userService.Login(loginRequest);
             if(token == string.Empty)
             {
+                _logger.LogWarning("Login rejected for {Email}", loginRequest.Email);
                 return Results.Unauthorized();
             }
-            else
-            {
-                Response.Cookies.Append("GuardPass", token);
 
-                return Results.Ok();
-            }
+            Response.Cookies.Append("GuardPass", token);
+
+            return Results.Ok();
         }
 
         [Authorize]

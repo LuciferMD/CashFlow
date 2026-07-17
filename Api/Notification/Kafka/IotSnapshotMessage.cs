@@ -3,13 +3,13 @@ using System.Text.Json.Serialization;
 namespace Notification.Kafka;
 
 public sealed record IotSnapshotMessage(
-    DateTime CapturedAt,
-    List<IotDevice> Devices);
+    [property: JsonPropertyName("capturedAt")] DateTime CapturedAt,
+    [property: JsonPropertyName("devices")] List<IotDevice> Devices);
 
 public sealed record IotDevice(
-    string Type,
-    string Name,
-    DevicePayload? Payload);
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("payload")] DevicePayload? Payload);
 
 public sealed record DevicePayload(
     [property: JsonPropertyName("co2")]      double? Co2,

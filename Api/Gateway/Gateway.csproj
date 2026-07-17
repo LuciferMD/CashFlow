@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.31.0" />
 
     <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.15" />
     <PackageReference Include="HotChocolate.AspNetCore.Authorization" Version="15.1.15" />
@@ -29,6 +30,8 @@
     <PackageReference Include="Confluent.Kafka" Version="2.8.0" />
     <PackageReference Include="Polly" Version="8.6.6" />
     <PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

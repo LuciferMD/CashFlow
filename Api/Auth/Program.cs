@@ -9,44 +9,23 @@ using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
-var repoRoot = RepoRoot.Find();
-var envPath = Path.Combine(repoRoot, ".env");
-if (File.Exists(envPath))
-    Env.Load(envPath);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
-
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("Frontend", policy =>
-        policy
-            .WithOrigins("https://localhost:5173", "https://localhost:3000")
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod());
-});
+    var repoRoot = RepoRoot.Find();
+    var envPath = Path.Combine(repoRoot, ".env");
+    if (File.Exists(envPath))
+        Env.Load(envPath);
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IUserRepository,UserRepository>();
-builder.Services.AddScoped<IJwtProvider,JwtProvider>();
-builder.Services.AddApiAuthentication(jwtOptions);
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-    .UseSnakeCaseNamingConvention());
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    builder.Host.UseCashFlowSerilog();
+    builder.Services.AddCashFlowElasticApm(builder.Configuration);
 
 app.UseExceptionHandling();
 
@@ -55,16 +34,58 @@ app.UseCors("Frontend");
 // Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
 //app.UseHttpsRedirection();
 
-app.UseCookiePolicy(new CookiePolicyOptions
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IUserRepository,UserRepository>();
+    builder.Services.AddScoped<IJwtProvider,JwtProvider>();
+    builder.Services.AddApiAuthentication(jwtOptions);
+
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .UseSnakeCaseNamingConvention());
+
+    var app = builder.Build();
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseSerilogRequestLogging();
+
+    app.UseCors("Frontend");
+
+    // Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
+    //app.UseHttpsRedirection();
+
+    app.UseCookiePolicy(new CookiePolicyOptions
+    {
+        MinimumSameSitePolicy = SameSiteMode.Strict,
+        HttpOnly = HttpOnlyPolicy.Always,
+        Secure = CookieSecurePolicy.SameAsRequest
+    });
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    Log.Information("Auth service starting in {Environment}", app.Environment.EnvironmentName);
+
+    app.Run();
+}
+catch (Exception ex)
 {
-    MinimumSameSitePolicy = SameSiteMode.Strict,
-    HttpOnly = HttpOnlyPolicy.Always,
-    Secure = CookieSecurePolicy.SameAsRequest
-});
+    Log.Fatal(ex, "Auth service terminated unexpectedly");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
+// Exposed for WebApplicationFactory in service tests.
+public partial class Program;
