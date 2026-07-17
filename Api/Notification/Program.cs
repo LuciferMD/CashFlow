@@ -1,3 +1,4 @@
+using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Microsoft.Extensions.Options;
 using Notification.Hubs;
@@ -67,7 +68,14 @@ try
 
     var app = builder.Build();
 
+app.UseExceptionHandling();
+
+app.UseCors("Frontend");
+app.UseWebSockets();
+app.UseRouting();
+
     app.UseSerilogRequestLogging();
+
 
     app.UseCors("Frontend");
     app.UseWebSockets();

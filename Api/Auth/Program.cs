@@ -5,6 +5,7 @@ using Auth.Models;
 using Auth.Repositories;
 using Auth.Repositories.Context;
 using Auth.Services;
+using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.EntityFrameworkCore;
@@ -26,17 +27,12 @@ try
     builder.Host.UseCashFlowSerilog();
     builder.Services.AddCashFlowElasticApm(builder.Configuration);
 
-    var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
+app.UseExceptionHandling();
 
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy("Frontend", policy =>
-            policy
-                .WithOrigins("https://localhost:5173", "https://localhost:3000")
-                .AllowCredentials()
-                .AllowAnyHeader()
-                .AllowAnyMethod());
-    });
+app.UseCors("Frontend");
+
+// Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
+//app.UseHttpsRedirection();
 
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();

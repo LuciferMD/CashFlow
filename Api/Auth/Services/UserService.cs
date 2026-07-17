@@ -22,24 +22,17 @@ namespace Auth.Services
 
         public async Task<string> Register(UserRequestDto userRequestDto)
         {
+            if (await _userRepository.EmailExists(userRequestDto.Email))
+            {
+                throw new InvalidOperationException("Email already registered");
+            }
+
             var passwordHash = PasswordHasher.Generate(userRequestDto.Password);
             var newUser = User.Create(Guid.NewGuid(), userRequestDto.UserName, userRequestDto.Email, passwordHash);
 
-            try
-            {
-                await _userRepository.Add(newUser);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Registration failed for email {Email}", userRequestDto.Email);
-                throw;
-            }
+            await _userRepository.Add(newUser);
+            return _jwtProvider.GenerateToken(newUser);
 
-            var token = _jwtProvider.GenerateToken(newUser);
-
-            _logger.LogInformation("User registered: {UserName} ({Email})", newUser.Name, newUser.Email);
-
-            return token;
         }
 
         public async Task<string> Login(LoginUserRequestDto loginRequest)

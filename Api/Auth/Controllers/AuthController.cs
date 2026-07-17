@@ -22,12 +22,16 @@ namespace Auth.Controllers
         [HttpPost("register")]
         public async Task<IResult> Register(UserRequestDto userRequestDto)
         {
-            _logger.LogInformation("Register request received for {Email}", userRequestDto.Email);
-
-            var token = await _userService.Register(userRequestDto);
-            Response.Cookies.Append("GuardPass", token);
-
-            return Results.Ok();
+            try
+            {
+                var token = await _userService.Register(userRequestDto);
+                Response.Cookies.Append("GuardPass", token);
+                return Results.Ok();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Conflict(new { message = ex.Message });
+            }
         }
 
         [HttpPost("login")]

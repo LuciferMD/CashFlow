@@ -1,12 +1,14 @@
-# STEP 1: Build
+# STEP 1: Build (context must be ./Api so Shared is available)
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-COPY *.csproj ./
-RUN dotnet restore
+COPY Shared/CashFlow.Shared.csproj Shared/
+COPY Notification/Notification.csproj Notification/
+RUN dotnet restore Notification/Notification.csproj
 
-COPY . ./
-RUN dotnet publish -c Release -o /app/out
+COPY Shared/ Shared/
+COPY Notification/ Notification/
+RUN dotnet publish Notification/Notification.csproj -c Release -o /app/out
 
 # STEP 2: Run
 FROM mcr.microsoft.com/dotnet/aspnet:8.0

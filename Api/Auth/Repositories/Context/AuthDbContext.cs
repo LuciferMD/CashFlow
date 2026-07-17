@@ -1,6 +1,5 @@
 ﻿using Auth.Repositories.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace Auth.Repositories.Context
 {
@@ -8,5 +7,13 @@ namespace Auth.Repositories.Context
     {
         public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options) { }
         public DbSet<User> Users { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasIndex(u => u.Email).IsUnique();
+            });
+        }
     }
 }

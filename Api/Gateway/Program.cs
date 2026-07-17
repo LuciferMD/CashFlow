@@ -1,3 +1,4 @@
+using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Gateway.Extensions;
 using Gateway.Infrastructure;
@@ -41,6 +42,7 @@ try
 
     builder.Services.AddHttpClient<HttpIotClient>();
     builder.Services.AddKafkaPublishing(builder.Configuration);
+
 
     var app = builder.Build();
 
