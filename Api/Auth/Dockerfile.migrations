@@ -1,13 +1,17 @@
 ﻿FROM mcr.microsoft.com/dotnet/sdk:9.0
-WORKDIR /app
+WORKDIR /src
 
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="/root/.dotnet/tools:${PATH}"
 
-COPY . .
+COPY Shared/CashFlow.Shared.csproj Shared/
+COPY Auth/Auth.csproj Auth/
+RUN dotnet restore Auth/Auth.csproj
 
-RUN dotnet restore
+COPY Shared/ Shared/
+COPY Auth/ Auth/
 
+WORKDIR /src/Auth
 RUN dotnet build
 
-CMD ["sh", "-c", "dotnet-ef database update"]
+CMD ["dotnet", "ef", "database", "update"]
