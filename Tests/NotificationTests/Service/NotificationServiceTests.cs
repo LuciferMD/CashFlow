@@ -91,18 +91,28 @@ public sealed class NotificationServiceTests
     public async Task KafkaConsumer_WhenSnapshotProduced_BroadcastsIotSnapshotToSignalRClient()
     {
         await using var connection = await ServiceTestHelpers.ConnectHubAsync(_fixture.Factory);
+
+        // Unique name so a late retry cannot match a stale broadcast from another run.
+        var deviceName = $"Office-{Guid.NewGuid():N}";
         var received = ServiceTestHelpers.WaitForHubEventAsync<JsonElement>(
             connection,
             "IotSnapshot",
-            TimeSpan.FromSeconds(20));
+            TimeSpan.FromSeconds(30));
 
-        var snapshot = ServiceTestHelpers.BuildSnapshot(humidity: 50, deviceName: "Office");
-        await ServiceTestHelpers.ProduceKafkaMessageAsync(
-            _fixture.BootstrapServers,
-            snapshot);
+        // Retry produce: with AutoOffsetReset=Latest, messages sent before the
+        // consumer finishes joining the group are never delivered.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(25);
+        while (DateTime.UtcNow < deadline && !received.IsCompleted)
+        {
+            var snapshot = ServiceTestHelpers.BuildSnapshot(humidity: 50, deviceName: deviceName);
+            await ServiceTestHelpers.ProduceKafkaMessageAsync(
+                _fixture.BootstrapServers,
+                snapshot);
+            await Task.Delay(500);
+        }
 
         var payload = await received;
         payload.GetProperty("devices")[0].GetProperty("name").GetString()
-            .Should().Be("Office");
+            .Should().Be(deviceName);
     }
 }

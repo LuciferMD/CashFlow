@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
+using Confluent.Kafka.Admin;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -72,8 +73,104 @@ internal static class ServiceTestHelpers
         Func<Task> action,
         TimeSpan timeout)
     {
+        await EnsureTopicExistsAsync(bootstrapServers, topic);
+
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = $"gateway-svc-{Guid.NewGuid():N}",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false,
+        };
+
+        using var consumer = new ConsumerBuilder<string, string>(config).Build();
+        consumer.Subscribe(topic);
+
+        using var cts = new CancellationTokenSource(timeout);
+        await WaitForPartitionAssignmentAsync(consumer, cts.Token);
+
+        // Produce only after the consumer is assigned so the message cannot be missed
+        // while the group is still joining (common flake on slow CI runners).
         await action();
-        return await ConsumeKafkaMessageAsync(bootstrapServers, topic, timeout);
+
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                var result = consumer.Consume(TimeSpan.FromMilliseconds(500));
+                if (result?.Message?.Value is not null)
+                {
+                    return result.Message.Value;
+                }
+            }
+            catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
+            {
+                await Task.Delay(200, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    internal static async Task EnsureTopicExistsAsync(string bootstrapServers, string topic)
+    {
+        using var admin = new AdminClientBuilder(new AdminClientConfig
+        {
+            BootstrapServers = bootstrapServers,
+        }).Build();
+
+        try
+        {
+            await admin.CreateTopicsAsync(
+            [
+                new TopicSpecification
+                {
+                    Name = topic,
+                    NumPartitions = 1,
+                    ReplicationFactor = 1,
+                },
+            ]);
+        }
+        catch (CreateTopicsException ex) when (ex.Results.All(r =>
+            r.Error.Code is ErrorCode.TopicAlreadyExists or ErrorCode.NoError))
+        {
+            // Topic already present from a previous produce/auto-create.
+        }
+    }
+
+    internal static async Task WaitForPartitionAssignmentAsync(
+        IConsumer<string, string> consumer,
+        CancellationToken cancellationToken)
+    {
+        // Trigger join / metadata refresh; assignment may appear after a few Consume polls.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (DateTime.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                _ = consumer.Consume(TimeSpan.FromMilliseconds(200));
+            }
+            catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
+            {
+                // Keep polling until metadata catches up.
+            }
+
+            if (consumer.Assignment.Count > 0)
+            {
+                return;
+            }
+
+            await Task.Delay(100, cancellationToken);
+        }
+
+        throw new TimeoutException("Timed out waiting for Kafka consumer partition assignment.");
     }
 
     internal static async Task<string?> ConsumeKafkaMessageAsync(

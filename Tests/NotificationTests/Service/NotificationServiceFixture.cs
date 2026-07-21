@@ -29,8 +29,13 @@ public sealed class NotificationServiceFixture : IAsyncLifetime
                 builder.UseSetting("Notification:HumidityThreshold", "60");
             });
 
-        // Allow the Kafka background consumer to connect and subscribe.
-        await Task.Delay(TimeSpan.FromSeconds(3));
+        // WebApplicationFactory starts Kestrel (and BackgroundServices) lazily.
+        // Force start before waiting so the Kafka consumer can subscribe.
+        _ = Factory.CreateClient();
+
+        // Allow the Kafka background consumer to join the group and subscribe.
+        // Messages produced before that are dropped (AutoOffsetReset=Latest).
+        await Task.Delay(TimeSpan.FromSeconds(5));
     }
 
     public async Task DisposeAsync()
