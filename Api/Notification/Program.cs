@@ -68,11 +68,11 @@ try
 
     var app = builder.Build();
 
-app.UseExceptionHandling();
+    app.UseExceptionHandling();
 
-app.UseCors("Frontend");
-app.UseWebSockets();
-app.UseRouting();
+    app.UseCors("Frontend");
+    app.UseWebSockets();
+    app.UseRouting();
 
     app.UseSerilogRequestLogging();
 

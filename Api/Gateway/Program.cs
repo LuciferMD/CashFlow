@@ -1,4 +1,3 @@
-using CashFlow.Shared.Middleware;
 using DotNetEnv;
 using Gateway.Extensions;
 using Gateway.Infrastructure;

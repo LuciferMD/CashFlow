@@ -50,8 +50,8 @@ public sealed class SnapshotProcessor : ISnapshotProcessor
                 {
                     DeviceName = device.Name,
                     DeviceType = device.Type,
-                    Humidity   = humidity,
-                    Threshold  = _options.HumidityThreshold,
+                    Humidity = humidity,
+                    Threshold = _options.HumidityThreshold,
                     CapturedAt = snapshot.CapturedAt,
                 };
 

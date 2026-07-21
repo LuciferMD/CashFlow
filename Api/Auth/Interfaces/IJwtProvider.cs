@@ -1,4 +1,4 @@
-﻿using Auth.Repositories.Models;
+using Auth.Repositories.Models;
 
 namespace Auth.Interfaces
 {

@@ -1,4 +1,4 @@
-﻿using Auth.Repositories.Models;
+using Auth.Repositories.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Auth.Repositories.Context

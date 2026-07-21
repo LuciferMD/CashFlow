@@ -1,5 +1,4 @@
-﻿using Auth.Interfaces;
-using Auth.Models;
+using Auth.Interfaces;
 using Auth.Repositories.Context;
 using Auth.Repositories.Models;
 using Microsoft.EntityFrameworkCore;
@@ -15,8 +14,8 @@ namespace Auth.Repositories
         }
         public async Task Add(User user)
         {
-           await _context.AddAsync(user);
-           await _context.SaveChangesAsync();
+            await _context.AddAsync(user);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<User?> GetByEmail(string email)

@@ -1,7 +1,6 @@
 using Auth.Extensions;
-using Auth.Interfaces;
 using Auth.Infrastructure;
-using Auth.Models;
+using Auth.Interfaces;
 using Auth.Repositories;
 using Auth.Repositories.Context;
 using Auth.Services;

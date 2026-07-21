@@ -40,10 +40,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        # Syntax gate — no ESLint config in the service yet.
-        run: |
-          node --check index.js
-          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+        run: npm run lint
 
       - name: Install test dependencies
         working-directory: Tests/HistoryStoreTests

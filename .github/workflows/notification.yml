@@ -41,14 +41,17 @@ jobs:
           dotnet restore Tests/NotificationTests/NotificationTests.csproj
 
       - name: Lint
-        # Compile gate for Notification + shared library.
-        # Strict `dotnet format --verify-no-changes` can be added once an EditorConfig baseline exists.
+        # EditorConfig whitespace + style gate (analyzers excluded — CS8618 etc. remain build warnings).
+        run: |
+          dotnet format whitespace Api/Notification/Notification.csproj --verify-no-changes
+          dotnet format style Api/Notification/Notification.csproj --verify-no-changes --severity warn
+          dotnet format whitespace Api/Shared/CashFlow.Shared.csproj --verify-no-changes
+          dotnet format style Api/Shared/CashFlow.Shared.csproj --verify-no-changes --severity warn
+
+      - name: Build
         run: |
           dotnet build Api/Notification/Notification.csproj -c Release --no-restore
-          dotnet build Api/Shared/CashFlow.Shared.csproj -c Release --no-restore
-
-      - name: Build tests
-        run: dotnet build Tests/NotificationTests/NotificationTests.csproj -c Release --no-restore
+          dotnet build Tests/NotificationTests/NotificationTests.csproj -c Release --no-restore
 
       - name: Test
         run: |
