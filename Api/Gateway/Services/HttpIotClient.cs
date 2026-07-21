@@ -1,10 +1,9 @@
-using Gateway.Types;
-using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Retry;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Gateway.Types;
+using Polly;
+using Polly.Retry;
 
 namespace Gateway.Services;
 

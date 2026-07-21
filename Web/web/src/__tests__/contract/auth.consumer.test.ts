@@ -45,13 +45,13 @@ describe("Web -> Auth contract", () => {
         });
       })
       .executeTest(async (mockServer) => {
-        const ok = await register(
+        const result = await register(
           constants.userName,
           constants.loginEmail,
           constants.loginPassword,
           mockServer.url,
         );
-        expect(ok).toBe(true);
+        expect(result).toEqual({ ok: true });
       });
   });
 

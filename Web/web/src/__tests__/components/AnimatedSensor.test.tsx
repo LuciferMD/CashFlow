@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 
 // motion/react uses browser-animation APIs that jsdom cannot run; replace with
 // a lightweight pass-through so the component renders as plain HTML elements.

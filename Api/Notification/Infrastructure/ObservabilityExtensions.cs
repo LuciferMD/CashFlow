@@ -1,4 +1,3 @@
-using Elastic.Apm.NetCoreAll;
 using Serilog;
 using Serilog.Sinks.Elasticsearch;
 

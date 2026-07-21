@@ -1,0 +1,90 @@
+name: Gateway CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "Api/Gateway/**"
+      - "Api/Shared/**"
+      - "Tests/GatewayTests/**"
+      - "Tests/pacts/Web-Gateway.json"
+      - "Tests/pacts/Notification-Gateway.json"
+      - "Tests/pacts/HistoryStore-Gateway.json"
+      - ".github/workflows/gateway.yml"
+  pull_request:
+    paths:
+      - "Api/Gateway/**"
+      - "Api/Shared/**"
+      - "Tests/GatewayTests/**"
+      - "Tests/pacts/Web-Gateway.json"
+      - "Tests/pacts/Notification-Gateway.json"
+      - "Tests/pacts/HistoryStore-Gateway.json"
+      - ".github/workflows/gateway.yml"
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: |
+          dotnet restore Api/Gateway/Gateway.csproj
+          dotnet restore Tests/GatewayTests/GatewayTests.csproj
+
+      - name: Lint
+        # EditorConfig whitespace + style gate (analyzers excluded — CS8618 etc. remain build warnings).
+        run: |
+          dotnet format whitespace Api/Gateway/Gateway.csproj --verify-no-changes
+          dotnet format style Api/Gateway/Gateway.csproj --verify-no-changes --severity warn
+          dotnet format whitespace Api/Shared/CashFlow.Shared.csproj --verify-no-changes
+          dotnet format style Api/Shared/CashFlow.Shared.csproj --verify-no-changes --severity warn
+
+      - name: Build
+        run: |
+          dotnet build Api/Gateway/Gateway.csproj -c Release --no-restore
+          dotnet build Tests/GatewayTests/GatewayTests.csproj -c Release --no-restore
+
+      - name: Test
+        run: |
+          dotnet test Tests/GatewayTests/GatewayTests.csproj \
+            -c Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=gateway-tests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-test-results
+          path: Tests/GatewayTests/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f Api/Gateway/Dockerfile \
+            -t cashflow-gateway:${{ github.sha }} \
+            -t cashflow-gateway:latest \
+            Api

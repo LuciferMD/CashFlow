@@ -40,14 +40,17 @@ describe("login", () => {
 // ─── register ───────────────────────────────────────────────────────────────
 
 describe("register", () => {
-  it("returns true when the server responds with 200 OK", async () => {
+  it("returns ok when the server responds with 200 OK", async () => {
     mockFetch.mockResolvedValue({ ok: true });
-    expect(await register("Alice", "alice@example.com", "pass123")).toBe(true);
+    expect(await register("Alice", "alice@example.com", "pass123")).toEqual({ ok: true });
   });
 
-  it("returns false when the server responds with a non-OK status", async () => {
-    mockFetch.mockResolvedValue({ ok: false });
-    expect(await register("Bob", "bob@example.com", "pass123")).toBe(false);
+  it("returns an error result when the server responds with a non-OK status", async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+    expect(await register("Bob", "bob@example.com", "pass123")).toEqual({
+      ok: false,
+      message: "Something went wrong. Please try again",
+    });
   });
 
   it("sends userName, email and password in the request body", async () => {

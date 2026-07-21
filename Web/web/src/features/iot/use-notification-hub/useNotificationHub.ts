@@ -34,7 +34,9 @@ export function useNotificationHub({
 }: UseNotificationHubOptions = {}) {
   // Keep callback ref stable so the effect doesn't re-run on every render.
   const onIotSnapshotRef = useRef(onIotSnapshot);
-  onIotSnapshotRef.current = onIotSnapshot;
+  useEffect(() => {
+    onIotSnapshotRef.current = onIotSnapshot;
+  });
 
   useEffect(() => {
     // Flag lets us distinguish an intentional stop (cleanup/StrictMode) from a

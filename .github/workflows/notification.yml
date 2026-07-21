@@ -1,0 +1,86 @@
+name: Notification CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "Api/Notification/**"
+      - "Api/Shared/**"
+      - "Tests/NotificationTests/**"
+      - "Tests/pacts/Notification-Gateway.json"
+      - ".github/workflows/notification.yml"
+  pull_request:
+    paths:
+      - "Api/Notification/**"
+      - "Api/Shared/**"
+      - "Tests/NotificationTests/**"
+      - "Tests/pacts/Notification-Gateway.json"
+      - ".github/workflows/notification.yml"
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: |
+          dotnet restore Api/Notification/Notification.csproj
+          dotnet restore Tests/NotificationTests/NotificationTests.csproj
+
+      - name: Lint
+        # EditorConfig whitespace + style gate (analyzers excluded — CS8618 etc. remain build warnings).
+        run: |
+          dotnet format whitespace Api/Notification/Notification.csproj --verify-no-changes
+          dotnet format style Api/Notification/Notification.csproj --verify-no-changes --severity warn
+          dotnet format whitespace Api/Shared/CashFlow.Shared.csproj --verify-no-changes
+          dotnet format style Api/Shared/CashFlow.Shared.csproj --verify-no-changes --severity warn
+
+      - name: Build
+        run: |
+          dotnet build Api/Notification/Notification.csproj -c Release --no-restore
+          dotnet build Tests/NotificationTests/NotificationTests.csproj -c Release --no-restore
+
+      - name: Test
+        run: |
+          dotnet test Tests/NotificationTests/NotificationTests.csproj \
+            -c Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=notification-tests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notification-test-results
+          path: Tests/NotificationTests/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f Api/Notification/Dockerfile \
+            -t cashflow-notification:${{ github.sha }} \
+            -t cashflow-notification:latest \
+            Api

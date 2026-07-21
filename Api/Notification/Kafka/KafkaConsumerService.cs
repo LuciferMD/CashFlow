@@ -40,8 +40,8 @@ public sealed class KafkaConsumerService : BackgroundService
         var config = new ConsumerConfig
         {
             BootstrapServers = _kafka.Brokers,
-            GroupId          = _kafka.GroupId,
-            AutoOffsetReset  = AutoOffsetReset.Latest,
+            GroupId = _kafka.GroupId,
+            AutoOffsetReset = AutoOffsetReset.Latest,
             EnableAutoCommit = true,
         };
 

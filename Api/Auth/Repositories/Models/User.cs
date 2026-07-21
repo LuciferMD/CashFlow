@@ -1,5 +1,3 @@
-﻿using Auth.Models;
-
 namespace Auth.Repositories.Models
 {
     public class User

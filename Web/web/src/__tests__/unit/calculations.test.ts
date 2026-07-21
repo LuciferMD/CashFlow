@@ -1,7 +1,6 @@
 import {
   computeMetrics,
   formatEnergy,
-  formatTimestamp,
   getCo2Level,
   getDeviceTypeLabel,
   getHistoryPeakCo2,

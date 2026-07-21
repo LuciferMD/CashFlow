@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
 using Notification.Models;
 
@@ -33,8 +32,8 @@ public sealed class TelegramService : ITelegramService
 
         var payload = new
         {
-            chat_id    = _options.ChatId,
-            text       = text,
+            chat_id = _options.ChatId,
+            text = text,
             parse_mode = "HTML",
         };
 

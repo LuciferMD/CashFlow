@@ -1,9 +1,7 @@
 using Auth.Interfaces;
 using Auth.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace Auth.Controllers
 {
@@ -40,7 +38,7 @@ namespace Auth.Controllers
             _logger.LogInformation("Login request received for {Email}", loginRequest.Email);
 
             var token = await _userService.Login(loginRequest);
-            if(token == string.Empty)
+            if (token == string.Empty)
             {
                 _logger.LogWarning("Login rejected for {Email}", loginRequest.Email);
                 return Results.Unauthorized();
@@ -53,9 +51,9 @@ namespace Auth.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<string> Test()
+        public Task<string> Test()
         {
-            return "My boy";
+            return Task.FromResult("My boy");
         }
     }
 }
