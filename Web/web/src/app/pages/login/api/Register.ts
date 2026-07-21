@@ -1,4 +1,4 @@
-import {config} from "../../../../config/api.ts";
+import { config } from "../../../../config/api.ts";
 
 const BASE = config.authApiUrl;
 
@@ -10,8 +10,9 @@ export async function register(
   userName: string,
   email: string,
   password: string,
+  baseUrl: string = BASE,
 ): Promise<RegisterResult> {
-  const res = await fetch(`${BASE}/auth/register`, {
+  const res = await fetch(`${baseUrl}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

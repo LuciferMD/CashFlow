@@ -27,19 +27,24 @@ try
     builder.Host.UseCashFlowSerilog();
     builder.Services.AddCashFlowElasticApm(builder.Configuration);
 
-app.UseExceptionHandling();
+    var jwtOptions = builder.Services.ConfigureJwtOptions(builder.Configuration, repoRoot);
 
-app.UseCors("Frontend");
-
-// Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
-//app.UseHttpsRedirection();
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Frontend", policy =>
+            policy
+                .WithOrigins("https://localhost:5173", "https://localhost:3000")
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+    });
 
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddScoped<IUserService, UserService>();
-    builder.Services.AddScoped<IUserRepository,UserRepository>();
-    builder.Services.AddScoped<IJwtProvider,JwtProvider>();
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IJwtProvider, JwtProvider>();
     builder.Services.AddApiAuthentication(jwtOptions);
 
     builder.Services.AddDbContext<AuthDbContext>(options =>
@@ -47,6 +52,8 @@ app.UseCors("Frontend");
         .UseSnakeCaseNamingConvention());
 
     var app = builder.Build();
+
+    app.UseExceptionHandling();
 
     if (app.Environment.IsDevelopment())
     {
@@ -58,7 +65,7 @@ app.UseCors("Frontend");
 
     app.UseCors("Frontend");
 
-    // Comment out or remove HttpsRedirection in dev ? it causes preflight redirects
+    // Comment out or remove HttpsRedirection in dev — it causes preflight redirects
     //app.UseHttpsRedirection();
 
     app.UseCookiePolicy(new CookiePolicyOptions

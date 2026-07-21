@@ -1,0 +1,85 @@
+name: Auth CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "Api/Auth/**"
+      - "Api/Shared/**"
+      - "Tests/AuthTests/**"
+      - "Tests/pacts/Web-Auth.json"
+      - "Tests/pacts/contract-constants.json"
+      - ".github/workflows/auth.yml"
+  pull_request:
+    paths:
+      - "Api/Auth/**"
+      - "Api/Shared/**"
+      - "Tests/AuthTests/**"
+      - "Tests/pacts/Web-Auth.json"
+      - "Tests/pacts/contract-constants.json"
+      - ".github/workflows/auth.yml"
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: |
+          dotnet restore Api/Auth/Auth.csproj
+          dotnet restore Tests/AuthTests/AuthTests.csproj
+
+      - name: Lint
+        # Compile gate for Auth + shared library.
+        # Strict `dotnet format --verify-no-changes` can be added once an EditorConfig baseline exists.
+        run: |
+          dotnet build Api/Auth/Auth.csproj -c Release --no-restore
+          dotnet build Api/Shared/CashFlow.Shared.csproj -c Release --no-restore
+
+      - name: Build tests
+        run: dotnet build Tests/AuthTests/AuthTests.csproj -c Release --no-restore
+
+      - name: Test
+        run: |
+          dotnet test Tests/AuthTests/AuthTests.csproj \
+            -c Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=auth-tests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-test-results
+          path: Tests/AuthTests/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f Api/Auth/Dockerfile \
+            -t cashflow-auth:${{ github.sha }} \
+            -t cashflow-auth:latest \
+            Api

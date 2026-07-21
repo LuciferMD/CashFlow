@@ -56,8 +56,11 @@ describe("RegisterPage", () => {
     expect(mockRegister).not.toHaveBeenCalled();
   });
 
-  it("shows an error when the register API returns false", async () => {
-    mockRegister.mockResolvedValue(false);
+  it("shows an error when the register API returns a failure result", async () => {
+    mockRegister.mockResolvedValue({
+      ok: false,
+      message: "Something went wrong. Please try again",
+    });
     const user = userEvent.setup();
     renderPage();
 
@@ -73,7 +76,7 @@ describe("RegisterPage", () => {
   });
 
   it("calls register with name, email and password on a valid submission", async () => {
-    mockRegister.mockResolvedValue(true);
+    mockRegister.mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     renderPage();
 

@@ -1,0 +1,70 @@
+name: HistoryStore CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "Api/HistoryStore/**"
+      - "Tests/HistoryStoreTests/**"
+      - "Tests/pacts/HistoryStore-Gateway.json"
+      - ".github/workflows/historystore.yml"
+  pull_request:
+    paths:
+      - "Api/HistoryStore/**"
+      - "Tests/HistoryStoreTests/**"
+      - "Tests/pacts/HistoryStore-Gateway.json"
+      - ".github/workflows/historystore.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Api/HistoryStore/history_store
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            Api/HistoryStore/history_store/package-lock.json
+            Tests/HistoryStoreTests/package-lock.json
+
+      - name: Install service dependencies
+        run: npm ci
+
+      - name: Lint
+        # Syntax gate — no ESLint config in the service yet.
+        run: |
+          node --check index.js
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Install test dependencies
+        working-directory: Tests/HistoryStoreTests
+        run: npm ci
+
+      - name: Test
+        working-directory: Tests/HistoryStoreTests
+        run: npm test
+
+  docker:
+    name: Docker image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            -f Api/HistoryStore/history_store/Dockerfile \
+            -t cashflow-historystore:${{ github.sha }} \
+            -t cashflow-historystore:latest \
+            Api/HistoryStore/history_store
