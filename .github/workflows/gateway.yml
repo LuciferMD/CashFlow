@@ -63,6 +63,7 @@ jobs:
             -c Release \
             --no-build \
             --verbosity normal \
+            --logger "console;verbosity=detailed" \
             --logger "trx;LogFileName=gateway-tests.trx"
 
       - name: Upload test results

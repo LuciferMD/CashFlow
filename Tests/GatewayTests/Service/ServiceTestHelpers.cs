@@ -67,50 +67,33 @@ internal static class ServiceTestHelpers
         iot.ValueKind.Should().Be(JsonValueKind.Null);
     }
 
+    /// <summary>
+    /// Publishes via <paramref name="action"/> then reads with a fresh consumer (Earliest).
+    /// Retries the full cycle — Gateway swallows Kafka publish errors, so the first
+    /// attempt can succeed in GraphQL while producing nothing on a still-warming broker.
+    /// </summary>
     internal static async Task<string?> ConsumeKafkaMessageAfterAsync(
         string bootstrapServers,
         string topic,
         Func<Task> action,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        int maxAttempts = 5)
     {
         await EnsureTopicExistsAsync(bootstrapServers, topic);
 
-        var config = new ConsumerConfig
+        var perAttempt = TimeSpan.FromMilliseconds(Math.Max(2000, timeout.TotalMilliseconds / maxAttempts));
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            BootstrapServers = bootstrapServers,
-            GroupId = $"gateway-svc-{Guid.NewGuid():N}",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false,
-        };
+            await action();
 
-        using var consumer = new ConsumerBuilder<string, string>(config).Build();
-        consumer.Subscribe(topic);
+            // Allow the producer ack / broker to commit before joining as a new consumer group.
+            await Task.Delay(250);
 
-        using var cts = new CancellationTokenSource(timeout);
-        await WaitForPartitionAssignmentAsync(consumer, cts.Token);
-
-        // Produce only after the consumer is assigned so the message cannot be missed
-        // while the group is still joining (common flake on slow CI runners).
-        await action();
-
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            try
+            var message = await ConsumeKafkaMessageAsync(bootstrapServers, topic, perAttempt);
+            if (!string.IsNullOrEmpty(message))
             {
-                var result = consumer.Consume(TimeSpan.FromMilliseconds(500));
-                if (result?.Message?.Value is not null)
-                {
-                    return result.Message.Value;
-                }
-            }
-            catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
-            {
-                await Task.Delay(200, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return null;
+                return message;
             }
         }
 
@@ -143,36 +126,6 @@ internal static class ServiceTestHelpers
         }
     }
 
-    internal static async Task WaitForPartitionAssignmentAsync(
-        IConsumer<string, string> consumer,
-        CancellationToken cancellationToken)
-    {
-        // Trigger join / metadata refresh; assignment may appear after a few Consume polls.
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        while (DateTime.UtcNow < deadline)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                _ = consumer.Consume(TimeSpan.FromMilliseconds(200));
-            }
-            catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
-            {
-                // Keep polling until metadata catches up.
-            }
-
-            if (consumer.Assignment.Count > 0)
-            {
-                return;
-            }
-
-            await Task.Delay(100, cancellationToken);
-        }
-
-        throw new TimeoutException("Timed out waiting for Kafka consumer partition assignment.");
-    }
-
     internal static async Task<string?> ConsumeKafkaMessageAsync(
         string bootstrapServers,
         string topic,
@@ -184,6 +137,8 @@ internal static class ServiceTestHelpers
             GroupId = $"gateway-svc-{Guid.NewGuid():N}",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
+            SocketTimeoutMs = 5000,
+            SessionTimeoutMs = 10000,
         };
 
         using var consumer = new ConsumerBuilder<string, string>(config).Build();
