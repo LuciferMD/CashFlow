@@ -8,9 +8,9 @@ public sealed class RsaKeyLoaderTests
     [Fact]
     public void ResolveKeyPath_WhenPathIsAbsolute_ReturnsPathUnchanged()
     {
-        const string absolutePath = @"C:\keys\public.pem";
+        var absolutePath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "keys", "public.pem"));
 
-        var result = RsaKeyLoader.ResolveKeyPath(@"C:\repo", absolutePath);
+        var result = RsaKeyLoader.ResolveKeyPath(Path.GetTempPath(), absolutePath);
 
         result.Should().Be(absolutePath);
     }
@@ -18,12 +18,12 @@ public sealed class RsaKeyLoaderTests
     [Fact]
     public void ResolveKeyPath_WhenPathIsRelative_CombinesWithRepoRoot()
     {
-        const string repoRoot = @"C:\repo";
-        const string relativePath = @"keys\public.pem";
+        var repoRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "repo"));
+        var relativePath = Path.Combine("keys", "public.pem");
 
         var result = RsaKeyLoader.ResolveKeyPath(repoRoot, relativePath);
 
-        result.Should().Contain("repo").And.Contain("keys").And.Contain("public.pem");
+        result.Should().Be(Path.GetFullPath(Path.Combine(repoRoot, relativePath)));
     }
 
     [Fact]

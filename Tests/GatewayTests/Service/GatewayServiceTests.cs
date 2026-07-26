@@ -64,9 +64,10 @@ public sealed class GatewayServiceTests
                 var response = await ServiceTestHelpers.PostGraphQlAsync(_fixture.Factory, jwt);
                 response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
             },
-            TimeSpan.FromSeconds(20));
+            TimeSpan.FromSeconds(45));
 
-        kafkaMessage.Should().NotBeNullOrEmpty();
+        kafkaMessage.Should().NotBeNullOrEmpty(
+            "GetIot should publish an IoT snapshot to Kafka (retries if the broker was still warming up)");
         kafkaMessage.Should().Contain("Kitchen");
     }
 

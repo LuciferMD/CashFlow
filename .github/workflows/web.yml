@@ -63,3 +63,66 @@ jobs:
             -t cashflow-web:${{ github.sha }} \
             -t cashflow-web:latest \
             Web/web
+
+  docker-publish:
+    name: Push image to Docker Hub
+    needs: docker
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: Web/web
+          file: Web/web/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/cashflow-web:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/cashflow-web:${{ github.sha }}
+
+  deploy:
+    name: Deploy to test server
+    needs: docker-publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      # Requires a real host reachable over SSH with Docker installed.
+      # Secrets not yet configured -> this job will fail until a real
+      # server exists and these are added:
+      #   DEPLOY_HOST     - server IP/hostname
+      #   DEPLOY_USER     - SSH user
+      #   DEPLOY_SSH_KEY  - private key for that user
+      #   DEPLOY_PORT     - optional, defaults to 22
+      - name: Pull latest image & restart container
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cashflow-web:latest
+            docker stop cashflow-web || true
+            docker rm cashflow-web || true
+            docker run -d \
+              --name cashflow-web \
+              --restart unless-stopped \
+              -p 3000:5173 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/cashflow-web:latest
+            # Apache on this host is assumed to already reverse-proxy
+            # (e.g. www.example.com -> http://127.0.0.1:3000), so no
+            # Apache config changes are needed here — only the container
+            # image is refreshed.

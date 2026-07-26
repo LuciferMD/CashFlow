@@ -61,6 +61,9 @@ public sealed class GatewayServiceFixture : IAsyncLifetime
                 builder.UseSetting("JwtOptions:Audience", "CashFlow");
             });
 
+        // Force host start so the Kafka producer singleton is created against a live broker.
+        _ = Factory.CreateClient();
+
         await ConfigureIotStubAsync(ServiceTestHelpers.SingleDeviceJson);
     }
 
