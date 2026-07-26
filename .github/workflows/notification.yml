@@ -116,12 +116,13 @@ jobs:
   deploy:
     name: Deploy to test server
     needs: docker-publish
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       # Requires a real host reachable over SSH with Docker installed.
-      # Secrets not yet configured -> this job will fail until a real
-      # server exists and these are added:
+      # Skipped unless the DEPLOY_ENABLED repository variable is set to
+      # "true" (Settings > Secrets and variables > Actions > Variables),
+      # and requires these secrets once you actually have a server:
       #   DEPLOY_HOST     - server IP/hostname
       #   DEPLOY_USER     - SSH user
       #   DEPLOY_SSH_KEY  - private key for that user
